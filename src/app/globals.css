@@ -15,6 +15,10 @@
   --muted: rgba(255, 255, 255, 0.44);
   --accent: #529cca;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --dot: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.08); /* horizontal lines */
+  --line-v: rgba(255, 255, 255, 0.15); /* vertical lines (stronger) */
+  --content-width: 1080px;
 }
 
 * {
@@ -37,19 +41,54 @@ body {
 }
 
 .wrap {
-  max-width: 1080px;
+  position: relative;
+  max-width: var(--content-width);
   margin: 0 auto;
   padding: 0 24px 96px;
+  /* Dotted grid, constrained to the main content column (flush with content). */
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: center top;
+}
+
+/* Vertical dashed guide lines at the content-column edges, full viewport
+   height — ties the empty side margins to the main content. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--line-v);
+  z-index: -1;
+  pointer-events: none;
+}
+body::before {
+  left: max(0px, calc(50% - var(--content-width) / 2));
+}
+body::after {
+  right: max(0px, calc(50% - var(--content-width) / 2));
+}
+
+/* Full-bleed horizontal dashed line — spans the viewport, centered on the
+   content column. Used to cap the top and bottom of the content. */
+.hline {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  border-top: 1px dashed var(--line);
 }
 
 /* ---------- Banner ---------- */
 .banner {
   position: relative;
-  margin: 0 -24px 8px;
+  margin: 0 -24px;
   height: 260px;
   background: linear-gradient(135deg, #2a2a2a, #141414);
   background-size: cover;
-  background-position: center 20%;
+  background-position: center 12%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -85,6 +124,7 @@ body {
   display: block;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.72);
   margin-bottom: 2px;
@@ -94,6 +134,7 @@ body {
   margin: 0;
   font-size: 30px;
   font-weight: 700;
+  line-height: 1.05;
   letter-spacing: -0.02em;
   color: var(--text-strong);
 }
@@ -102,6 +143,7 @@ body {
 .footer {
   margin-top: 56px;
   padding-top: 22px;
+  padding-bottom: 32px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;

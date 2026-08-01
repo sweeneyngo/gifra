@@ -21,6 +21,8 @@ export default async function Home() {
 
   return (
     <div className="wrap">
+      <div className="hline" />
+
       {/* Banner image lives at public/banner.jpg */}
       <header
         className="banner"
@@ -34,6 +36,8 @@ export default async function Home() {
           <TopActions />
         </div>
       </header>
+
+      <div className="hline" />
 
       <div className="toolbar">
         <span className="count">
@@ -123,6 +127,8 @@ export default async function Home() {
           </span>
         </div>
       </footer>
+
+      <div className="hline" />
     </div>
   );
 }
