@@ -15,8 +15,11 @@ if (!appId || !token) {
 }
 
 const STRING = 3;
-const OWNER_ONLY = "0"; // default_member_permissions: hidden from non-admins
 
+// Note: owner-only is enforced in code via DISCORD_OWNER_ID (see the route).
+// We deliberately DON'T set default_member_permissions: "0" here — that flag
+// hides commands from everyone (even you) unless you add per-command overrides
+// in Server Settings → Integrations. The code gate is the real lock.
 const commands = [
   {
     name: "wishlist",
@@ -28,12 +31,10 @@ const commands = [
   {
     name: "list",
     description: "Show the whole wishlist (owner only)",
-    default_member_permissions: OWNER_ONLY,
   },
   {
     name: "received",
     description: "Mark a wishlist item as received (owner only)",
-    default_member_permissions: OWNER_ONLY,
     options: [
       {
         name: "query",
@@ -46,7 +47,6 @@ const commands = [
   {
     name: "remove",
     description: "Remove a wishlist item (owner only)",
-    default_member_permissions: OWNER_ONLY,
     options: [
       {
         name: "query",
