@@ -49,7 +49,7 @@ body {
   height: 260px;
   background: linear-gradient(135deg, #2a2a2a, #141414);
   background-size: cover;
-  background-position: center 68%;
+  background-position: center 20%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -81,18 +81,21 @@ body {
   gap: 16px;
 }
 
+.banner-title .eyebrow {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 2px;
+}
+
 .banner-title h1 {
   margin: 0;
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-strong);
-}
-
-.banner-title p {
-  margin: 4px 0 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
 }
 
 /* ---------- Footer / credits ---------- */
@@ -123,16 +126,26 @@ body {
   margin-right: 2px;
 }
 
-.footer .tech {
+.footer .stack {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--text);
+  gap: 10px;
 }
 
-.footer .tech svg {
-  opacity: 0.85;
-  flex-shrink: 0;
+.footer .brand {
+  display: inline-flex;
+  color: var(--muted);
+  transition: color 0.12s;
+}
+
+.footer .brand:hover {
+  color: var(--text-strong);
+}
+
+.footer .plus {
+  color: var(--border-strong);
+  font-size: 12px;
+  user-select: none;
 }
 
 .footer a {

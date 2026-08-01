@@ -68,10 +68,6 @@ export function TopActions() {
               Grayed-out items have already been received, so skip those. The
               list updates itself as I add things.
             </p>
-            <p>
-              Questions or want to coordinate?{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-            </p>
           </div>
         </div>
       )}
