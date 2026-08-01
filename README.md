@@ -1,8 +1,8 @@
-# gimme
+# gifra
 
-A dead-simple, cross-storefront wishlist. Post a product link with `/wishlist`
-in Discord and it appears as a card (image · name · link). Click **✓ received**
-to gray it out.
+My public page. First surface is a dead-simple, cross-storefront **wishlist**:
+post a product link with `/wishlist` in Discord and it appears as a card
+(image · name · link). Click **✓ received** to gray it out.
 
 Works with any storefront that exposes Open Graph tags (Etsy, Big Cartel,
 Shopify stores, most of the web). Amazon/eBay often serve thin or blocked HTML
