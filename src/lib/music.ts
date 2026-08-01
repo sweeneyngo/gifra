@@ -11,7 +11,7 @@ export interface Song {
   releasedAt: string | null;
   durationSec: number | null;
   genres: string[];
-  tags: string[];
+  statusTags: string[]; // e.g. "tentative" — status-type tags (ambiguity flag)
   singers: string[];
   artUrl: string | null; // presigned cover-art URL (24h)
 }
@@ -27,7 +27,7 @@ interface Row {
   duration: number | null;
   art_key: string | null;
   genres: string[] | null;
-  tags: string[] | null;
+  status_tags: string[] | null;
   singers: string[] | null;
 }
 
@@ -53,7 +53,8 @@ export async function listSongs(): Promise<Song[]> {
             where sg.song_id = s.id order by g.name) as genres,
       array(select t.name from music.song_tags st
             join music.tags t on t.id = st.tag_id
-            where st.song_id = s.id order by t.name) as tags,
+            where st.song_id = s.id and t.type = 'status'
+            order by t.name) as status_tags,
       array(select si.name from music.song_singers ss
             join music.singers si on si.id = ss.singer_id
             where ss.song_id = s.id
@@ -75,7 +76,7 @@ export async function listSongs(): Promise<Song[]> {
       releasedAt: r.released_at,
       durationSec: r.duration != null ? Number(r.duration) : null,
       genres: r.genres ?? [],
-      tags: r.tags ?? [],
+      statusTags: r.status_tags ?? [],
       singers: r.singers ?? [],
       artUrl: r.art_key ? await presign(r.art_key, 24 * 3600) : null,
     })),

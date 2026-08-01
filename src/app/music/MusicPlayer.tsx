@@ -10,57 +10,90 @@ function fmt(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+interface Group {
+  key: string;
+  latest: Song; // highest version #
+  versions: Song[]; // sorted newest-version first
+}
+
 export function MusicPlayer({ songs }: { songs: Song[] }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [idx, setIdx] = useState<number | null>(null);
+  const [currentHash, setCurrentHash] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
   const [vol, setVol] = useState(1);
   const [q, setQ] = useState("");
-  const [genre, setGenre] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  const current = idx != null ? songs[idx] : null;
-
-  const genres = useMemo(
-    () => [...new Set(songs.flatMap((s) => s.genres))].sort(),
+  const byHash = useMemo(
+    () => new Map(songs.map((s) => [s.hashId, s])),
     [songs],
   );
+  const current = currentHash ? (byHash.get(currentHash) ?? null) : null;
+
+  // Collapse versions into groups (latest = highest version number).
+  const groups = useMemo<Group[]>(() => {
+    const m = new Map<string, Song[]>();
+    for (const s of songs) {
+      const k = s.songGroupHashId || s.hashId;
+      const arr = m.get(k);
+      if (arr) arr.push(s);
+      else m.set(k, [s]);
+    }
+    return [...m.values()]
+      .map((vs) => {
+        const sorted = [...vs].sort((a, b) => b.version - a.version);
+        return {
+          key: sorted[0].songGroupHashId || sorted[0].hashId,
+          latest: sorted[0],
+          versions: sorted,
+        };
+      })
+      .sort((a, b) => a.latest.title.localeCompare(b.latest.title));
+  }, [songs]);
 
   const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return songs.filter((s) => {
-      if (genre && !s.genres.includes(genre)) return false;
-      if (!needle) return true;
-      return (
-        s.title.toLowerCase().includes(needle) ||
-        s.singers.join(" ").toLowerCase().includes(needle)
-      );
-    });
-  }, [songs, q, genre]);
+    const n = q.trim().toLowerCase();
+    if (!n) return groups;
+    return groups.filter(
+      (g) =>
+        g.latest.title.toLowerCase().includes(n) ||
+        g.latest.singers.join(" ").toLowerCase().includes(n),
+    );
+  }, [groups, q]);
 
-  // Load + play whenever the selected track changes.
+  const order = useMemo(() => shown.map((g) => g.latest.hashId), [shown]);
+  const groupOf = (hash: string) =>
+    groups.find((g) => g.versions.some((v) => v.hashId === hash));
+
   useEffect(() => {
     const a = audioRef.current;
-    if (!a || idx == null) return;
-    a.src = `/api/music/songs/${songs[idx].hashId}/stream`;
+    if (!a || !currentHash) return;
+    a.src = `/api/music/songs/${currentHash}/stream`;
     a.play().then(
       () => setPlaying(true),
       () => setPlaying(false),
     );
-  }, [idx, songs]);
+  }, [currentHash]);
 
   useEffect(() => {
     const a = audioRef.current;
     if (a) a.volume = vol;
   }, [vol]);
 
-  function playAt(i: number) {
-    if (i === idx) {
-      togglePlay();
-    } else {
-      setIdx(i);
-    }
+  function playHash(h: string) {
+    if (h === currentHash) togglePlay();
+    else setCurrentHash(h);
   }
   function togglePlay() {
     const a = audioRef.current;
@@ -74,18 +107,22 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
     }
   }
   function step(delta: number) {
-    if (idx == null || songs.length === 0) return;
-    setIdx((idx + delta + songs.length) % songs.length);
+    if (!currentHash || order.length === 0) return;
+    const g = groupOf(currentHash);
+    const anchor = g ? g.latest.hashId : currentHash;
+    let i = order.indexOf(anchor);
+    if (i < 0) i = 0;
+    setCurrentHash(order[(i + delta + order.length) % order.length]);
   }
+
+  const currentGroup = current ? groupOf(current.hashId) : null;
+  const showVersionInBar =
+    current && currentGroup && currentGroup.versions.length > 1;
 
   return (
     <div className="wrap music">
       <div className="music-head">
         <h1>Music</h1>
-        <p className="sub">
-          {songs.length} covers · sung by{" "}
-          {[...new Set(songs.flatMap((s) => s.singers))].join(", ") || "—"}
-        </p>
       </div>
 
       <div className="music-filters">
@@ -95,55 +132,104 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div className="genre-chips">
-          <button
-            className={`chip${genre === null ? " on" : ""}`}
-            onClick={() => setGenre(null)}
-          >
-            All
-          </button>
-          {genres.map((g) => (
-            <button
-              key={g}
-              className={`chip${genre === g ? " on" : ""}`}
-              onClick={() => setGenre((cur) => (cur === g ? null : g))}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="tracklist">
-        {shown.map((s) => {
-          const realIdx = songs.indexOf(s);
-          const isCurrent = realIdx === idx;
+        {shown.map((g) => {
+          const s = g.latest;
+          const isCurrent = g.versions.some((v) => v.hashId === currentHash);
+          const isOpen = expanded === g.key;
           return (
-            <button
-              key={s.hashId}
-              className={`track${isCurrent ? " current" : ""}`}
-              onClick={() => playAt(realIdx)}
-            >
-              <span className="track-art">
-                {s.artUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.artUrl} alt="" loading="lazy" />
-                ) : (
-                  <span className="track-art empty">♪</span>
-                )}
-                <span className="track-play">
-                  {isCurrent && playing ? <PauseIcon /> : <PlayIcon />}
+            <div key={g.key} className="track-group">
+              <div
+                className={`track${isCurrent ? " current" : ""}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => playHash(s.hashId)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    playHash(s.hashId);
+                  }
+                }}
+              >
+                <span className="track-art">
+                  {s.artUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.artUrl} alt="" loading="lazy" />
+                  ) : (
+                    <span className="track-art empty">♪</span>
+                  )}
+                  <span className="track-play">
+                    {isCurrent && playing ? <PauseIcon /> : <PlayIcon />}
+                  </span>
                 </span>
-              </span>
-              <span className="track-main">
-                <span className="track-title">{s.title}</span>
-                <span className="track-sub">{s.singers.join(", ")}</span>
-              </span>
-              <span className="track-genres">{s.genres.join(" · ")}</span>
-              <span className="track-dur">
-                {s.durationSec != null ? fmt(s.durationSec) : ""}
-              </span>
-            </button>
+
+                <span className="track-main">
+                  <span className="track-titlerow">
+                    <span className="track-title">{s.title}</span>
+                    {g.versions.length > 1 && (
+                      <span className="badge ver" title={`${g.versions.length} versions`}>
+                        {g.versions.length} versions
+                      </span>
+                    )}
+                    {s.statusTags.map((t) => (
+                      <span key={t} className="badge status" title="Status">
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                  <span className="track-sub">{s.singers.join(", ")}</span>
+                </span>
+
+                <span className="track-genres">{s.genres.join(" · ")}</span>
+                <span className="track-dur">
+                  {s.durationSec != null ? fmt(s.durationSec) : ""}
+                </span>
+
+                <button
+                  className={`track-expand${isOpen ? " open" : ""}`}
+                  aria-label={isOpen ? "Collapse" : "Details"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded(isOpen ? null : g.key);
+                  }}
+                >
+                  <ChevronIcon />
+                </button>
+              </div>
+
+              {isOpen && (
+                <div className="track-detail">
+                  {s.description && <p className="desc">{s.description}</p>}
+                  {g.versions.length > 1 && (
+                    <div className="versions">
+                      {g.versions.map((v, i) => (
+                        <button
+                          key={v.hashId}
+                          className={`version-row${v.hashId === currentHash ? " current" : ""}`}
+                          onClick={() => playHash(v.hashId)}
+                        >
+                          <span className="v-play">
+                            {v.hashId === currentHash && playing ? (
+                              <PauseIcon />
+                            ) : (
+                              <PlayIcon />
+                            )}
+                          </span>
+                          <span className="v-num">v{v.version}</span>
+                          {i === 0 && <span className="v-latest">latest</span>}
+                          <span className="v-date">{fmtDate(v.releasedAt)}</span>
+                          <span className="v-dur">
+                            {v.durationSec != null ? fmt(v.durationSec) : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
         {shown.length === 0 && (
@@ -161,7 +247,12 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
                 <img src={current.artUrl} alt="" className="np-art" />
               )}
               <div className="np-meta">
-                <div className="np-title">{current.title}</div>
+                <div className="np-title">
+                  {current.title}
+                  {showVersionInBar && (
+                    <span className="np-ver">v{current.version}</span>
+                  )}
+                </div>
                 <div className="np-sub">{current.singers.join(", ")}</div>
               </div>
             </div>
@@ -252,5 +343,10 @@ const NextIcon = () => (
 const VolIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <path d="M4 9v6h3l4 4V5L7 9zm11 3a3 3 0 0 0-2-2.8v5.6A3 3 0 0 0 15 12z" />
+  </svg>
+);
+const ChevronIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="m6 9 6 6 6-6" />
   </svg>
 );
