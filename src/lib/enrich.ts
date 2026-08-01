@@ -46,6 +46,92 @@ function meta(root: ReturnType<typeof parse>, ...keys: string[]): string | null 
   return null;
 }
 
+type El = ReturnType<typeof parse>;
+
+/** Pull the first usable image URL out of any JSON-LD blocks on the page. */
+function jsonLdImage(root: El): string | null {
+  for (const s of root.querySelectorAll('script[type="application/ld+json"]')) {
+    let data: unknown;
+    try {
+      data = JSON.parse(s.text);
+    } catch {
+      continue;
+    }
+    const found = searchImage(data);
+    if (found) return found;
+  }
+  return null;
+}
+
+function pickUrl(v: unknown): string | null {
+  if (typeof v === "string" && /^https?:\/\//.test(v)) return v;
+  if (Array.isArray(v)) {
+    for (const x of v) {
+      const u = pickUrl(x);
+      if (u) return u;
+    }
+  }
+  if (v && typeof v === "object") {
+    const url = (v as { url?: unknown }).url;
+    if (typeof url === "string" && /^https?:\/\//.test(url)) return url;
+  }
+  return null;
+}
+
+function searchImage(obj: unknown): string | null {
+  if (!obj || typeof obj !== "object") return null;
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === "image") {
+      const u = pickUrl(value);
+      if (u) return u;
+    }
+    if (value && typeof value === "object") {
+      const nested = searchImage(value);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+// Filenames that are almost never the product: chrome, not content.
+const BAD_IMG =
+  /logo|icon|sprite|favicon|nav|menu|flag|badge|payment|placeholder|blank|pixel|loader|spinner|\.svg(\?|$)/i;
+
+/**
+ * Last-resort: scan <img> tags and pick the most product-looking one.
+ * Scores by size hints and hi-res/product path markers. Heuristic, not perfect.
+ */
+function scanForProductImage(root: El, baseUrl: string): string | null {
+  let best: { url: string; score: number } | null = null;
+  for (const img of root.querySelectorAll("img")) {
+    let src =
+      img.getAttribute("src") ||
+      img.getAttribute("data-src") ||
+      img.getAttribute("data-image") ||
+      "";
+    const srcset = img.getAttribute("srcset") || img.getAttribute("data-srcset");
+    if (!src && srcset) src = srcset.split(",")[0].trim().split(/\s+/)[0];
+    if (!src || src.startsWith("data:") || BAD_IMG.test(src)) continue;
+
+    let abs: string;
+    try {
+      abs = new URL(src, baseUrl).toString();
+    } catch {
+      continue;
+    }
+    if (!/^https?:\/\//.test(abs)) continue;
+
+    let score = 0;
+    if (/hi-?res|large|zoom|_\d{2}\.(jpg|jpeg|png|webp)/i.test(abs)) score += 2;
+    if (/product/i.test(abs)) score += 1;
+    const size = abs.match(/[?&](?:sw|w|width)=(\d+)/i);
+    if (size) score += Math.min(3, Math.floor(parseInt(size[1], 10) / 300));
+
+    if (!best || score > best.score) best = { url: abs, score };
+  }
+  return best?.url ?? null;
+}
+
 /**
  * Fetch a product page and pull Open Graph / meta tags.
  * Universal path — no per-store code. Always resolves; never throws.
@@ -71,7 +157,15 @@ export async function enrich(url: string): Promise<Enriched> {
       root.querySelector("title")?.text?.trim() ??
       null;
 
-    let image = meta(root, "og:image", "og:image:url", "twitter:image");
+    // Image: prefer OG/Twitter, then progressively fall back to other sources
+    // for sites (e.g. Salesforce Commerce) that don't emit og:image.
+    let image =
+      meta(root, "og:image", "og:image:url", "twitter:image") ??
+      root.querySelector('link[rel="image_src"]')?.getAttribute("href") ??
+      root.querySelector('meta[itemprop="image"]')?.getAttribute("content") ??
+      jsonLdImage(root) ??
+      scanForProductImage(root, url);
+
     // Resolve protocol-relative or relative image URLs against the page.
     if (image) {
       try {
