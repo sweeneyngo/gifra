@@ -652,7 +652,7 @@ body::after {
   color: var(--text-strong);
 }
 .track-detail {
-  padding: 2px 12px 18px;
+  padding: 12px 12px 18px;
   animation: fade 0.14s ease-out;
 }
 .desc {
@@ -884,7 +884,7 @@ body::after {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-strong);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .np-settings-menu {
   width: 220px;
