@@ -4,6 +4,7 @@ import {
   insertItem,
   updateItemMeta,
   findItemsByQuery,
+  listItems,
   setStatus,
   deleteItem,
 } from "@/lib/db";
@@ -58,11 +59,47 @@ export async function POST(req: Request): Promise<Response> {
   if (body.type === APPLICATION_COMMAND) {
     const name = body.data?.name;
     if (name === "wishlist") return handleWishlist(body);
+    if (name === "list") return handleList(body);
     if (name === "received" || name === "remove") {
       return handleManage(body, name);
     }
   }
   return new Response("Unhandled interaction", { status: 400 });
+}
+
+/** Returns a denial response if the caller isn't the configured owner. */
+function ownerGate(body: Interaction): Response | null {
+  const uid = body.member?.user?.id ?? body.user?.id;
+  const owner = process.env.DISCORD_OWNER_ID;
+  if (owner && uid !== owner) {
+    return reply("⛔ Only the list owner can do that.", true);
+  }
+  return null;
+}
+
+const STATUS_EMOJI: Record<string, string> = {
+  wanted: "🛒",
+  ordered: "📦",
+  received: "✅",
+};
+
+async function handleList(body: Interaction): Promise<Response> {
+  const denied = ownerGate(body);
+  if (denied) return denied;
+
+  const items = await listItems();
+  if (items.length === 0) return reply("The wishlist is empty.", true);
+
+  const lines = items.map((i) => {
+    const label = i.title ?? i.url;
+    const where = i.store ? ` _(${i.store})_` : "";
+    return `${STATUS_EMOJI[i.status] ?? "•"} ${label}${where}`;
+  });
+
+  let listText = lines.join("\n");
+  if (listText.length > 1900) listText = listText.slice(0, 1900) + "\n… (truncated)";
+
+  return reply(`**Wishlist — ${items.length} item(s)**\n${listText}`, true);
 }
 
 async function handleWishlist(body: Interaction): Promise<Response> {
@@ -108,11 +145,8 @@ async function handleManage(
   name: "received" | "remove",
 ): Promise<Response> {
   // Owner gate (defense-in-depth alongside the command's default permissions).
-  const uid = body.member?.user?.id ?? body.user?.id;
-  const owner = process.env.DISCORD_OWNER_ID;
-  if (owner && uid !== owner) {
-    return reply("⛔ Only the list owner can manage items.", true);
-  }
+  const denied = ownerGate(body);
+  if (denied) return denied;
 
   const query = body.data ? getOption(body.data, "query") : null;
   if (!query) return reply("Give me a search term.", true);

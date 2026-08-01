@@ -26,6 +26,11 @@ const commands = [
     ],
   },
   {
+    name: "list",
+    description: "Show the whole wishlist (owner only)",
+    default_member_permissions: OWNER_ONLY,
+  },
+  {
     name: "received",
     description: "Mark a wishlist item as received (owner only)",
     default_member_permissions: OWNER_ONLY,
