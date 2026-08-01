@@ -460,8 +460,12 @@ body::after {
 }
 
 /* ============ Music ============ */
+/* When a track is playing, clear space under all content for the fixed bar. */
+.app-shell.playing {
+  padding-bottom: 84px;
+}
 .music {
-  padding-bottom: 140px; /* room for the now-playing bar */
+  padding-bottom: 48px;
 }
 .music-head {
   padding: 8px 0 20px;
@@ -800,6 +804,9 @@ body::after {
 .np-controls button:hover {
   color: var(--text-strong);
 }
+.np-controls button.on {
+  color: var(--accent);
+}
 .np-play {
   background: var(--text-strong) !important;
   color: var(--bg) !important;
@@ -858,7 +865,7 @@ body::after {
 /* Popovers above the bar (description / settings) */
 .np-popover {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 16px);
   right: 20px;
   z-index: 30;
   background: var(--panel);
@@ -881,28 +888,39 @@ body::after {
 }
 .np-settings-menu {
   width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
 }
-.setting {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
+.setting-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  padding: 0 2px 8px;
+}
+.speed-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.speed-btn {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 0;
   border-radius: 7px;
-  font-size: 13px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.speed-btn:hover {
   color: var(--text);
-  cursor: pointer;
+  border-color: var(--border-strong);
 }
-.setting:hover {
-  background: var(--card);
-}
-.setting input {
-  accent-color: var(--accent);
-  cursor: pointer;
+.speed-btn.on {
+  color: var(--text-strong);
+  background: var(--card-hover);
+  border-color: var(--accent);
 }
 input[type="range"] {
   -webkit-appearance: none;

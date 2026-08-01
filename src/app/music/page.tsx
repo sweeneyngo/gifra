@@ -1,5 +1,5 @@
 import { listSongs } from "@/lib/music";
-import { MusicPlayer } from "./MusicPlayer";
+import { MusicLibrary } from "./MusicLibrary";
 
 export const dynamic = "force-dynamic";
 
@@ -10,5 +10,5 @@ export const metadata = {
 
 export default async function MusicPage() {
   const songs = await listSongs();
-  return <MusicPlayer songs={songs} />;
+  return <MusicLibrary songs={songs} />;
 }
