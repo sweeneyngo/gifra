@@ -884,7 +884,7 @@ body::after {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-strong);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 .np-settings-menu {
   width: 220px;
