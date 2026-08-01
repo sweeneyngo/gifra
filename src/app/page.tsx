@@ -1,27 +1,49 @@
 import { listItems } from "@/lib/db";
-import { updateStatus, removeItem } from "./actions";
+import { TopActions } from "./TopActions";
 
 export const dynamic = "force-dynamic";
 
+// Public-facing page title — rename freely.
+const PAGE_TITLE = "My Wishlist";
+const PAGE_SUBTITLE = "Things I'm after — pick anything that's not grayed out.";
+
+// Full date: "August 1, 2026" (not "Aug 1").
 const dateFmt = new Intl.DateTimeFormat("en-US", {
-  month: "short",
+  month: "long",
   day: "numeric",
+  year: "numeric",
 });
 
 export default async function Home() {
   const items = await listItems();
+  const remaining = items.filter((i) => i.status !== "received").length;
 
   return (
-    <main className="wrap">
-      <h1>gimme</h1>
-      <p className="sub">
-        Post a link with <code>/wishlist</code> in Discord, or it shows up here.
-      </p>
+    <div className="wrap">
+      {/* Banner image lives at public/banner.jpg */}
+      <header
+        className="banner"
+        style={{ backgroundImage: "url('/banner.jpg')" }}
+      >
+        <div className="banner-inner">
+          <div className="banner-title">
+            <h1>{PAGE_TITLE}</h1>
+            <p>{PAGE_SUBTITLE}</p>
+          </div>
+          <TopActions />
+        </div>
+        <span className="banner-credit">Art by @stoatallynate</span>
+      </header>
+
+      <div className="toolbar">
+        <span className="count">
+          {items.length} item{items.length === 1 ? "" : "s"}
+          {items.length > 0 && ` · ${remaining} still wanted`}
+        </span>
+      </div>
 
       {items.length === 0 ? (
-        <div className="empty-state">
-          Nothing yet. Drop a <code>/wishlist &lt;link&gt;</code> in Discord.
-        </div>
+        <div className="empty-state">Nothing here yet — check back soon.</div>
       ) : (
         <div className="grid">
           {items.map((item) => {
@@ -62,33 +84,9 @@ export default async function Home() {
                   </a>
 
                   <div className="meta">
+                    {received && <span className="received-tag">Received · </span>}
                     {item.store ? `${item.store} · ` : ""}
                     {dateFmt.format(new Date(item.created_at))}
-                  </div>
-
-                  <div className="actions">
-                    {/* Toggle received on/off. */}
-                    <form
-                      action={async () => {
-                        "use server";
-                        await updateStatus(
-                          item.id,
-                          received ? "wanted" : "received",
-                        );
-                      }}
-                    >
-                      <button type="submit">
-                        {received ? "↩ undo" : "✓ received"}
-                      </button>
-                    </form>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await removeItem(item.id);
-                      }}
-                    >
-                      <button type="submit">✕</button>
-                    </form>
                   </div>
                 </div>
               </div>
@@ -96,6 +94,6 @@ export default async function Home() {
           })}
         </div>
       )}
-    </main>
+    </div>
   );
 }

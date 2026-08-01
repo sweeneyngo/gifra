@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "gimme — wishlist",
-  description: "A dead-simple cross-storefront wishlist.",
+  title: "My Wishlist",
+  description: "A running wishlist of things I'm after.",
 };
 
 export default function RootLayout({
