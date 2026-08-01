@@ -5,6 +5,46 @@ export interface Enriched {
   title: string | null;
   image_url: string | null;
   store: string | null;
+  focal_x: number; // visual-center crop point, 0–100 (%)
+  focal_y: number;
+}
+
+const clampPct = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+
+/**
+ * Content-aware "visual center" for an image, à la Twitter's saliency crop.
+ * Downloads the image and runs smartcrop for a 4:3 target, returning the crop
+ * center as percentages. Dynamically imports the native deps so any failure
+ * degrades to dead-center (50/50) instead of crashing the caller.
+ */
+async function computeFocal(imageUrl: string): Promise<{ x: number; y: number }> {
+  const fallback = { x: 50, y: 50 };
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(imageUrl, {
+      headers: { "User-Agent": UA },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return fallback;
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    const [{ default: sharp }, { default: smartcrop }] = await Promise.all([
+      import("sharp"),
+      import("smartcrop-sharp"),
+    ]);
+    const meta = await sharp(buf).metadata();
+    if (!meta.width || !meta.height) return fallback;
+
+    const { topCrop: c } = await smartcrop.crop(buf, { width: 100, height: 75 });
+    return {
+      x: clampPct(((c.x + c.width / 2) / meta.width) * 100),
+      y: clampPct(((c.y + c.height / 2) / meta.height) * 100),
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 // Pretend to be a real browser — many storefronts serve thin/blocked HTML to
@@ -147,7 +187,8 @@ export async function enrich(url: string): Promise<Enriched> {
       redirect: "follow",
     });
     clearTimeout(timeout);
-    if (!res.ok) return { url, title: null, image_url: null, store };
+    if (!res.ok)
+      return { url, title: null, image_url: null, store, focal_x: 50, focal_y: 50 };
 
     const html = await res.text();
     const root = parse(html);
@@ -175,9 +216,18 @@ export async function enrich(url: string): Promise<Enriched> {
       }
     }
 
-    return { url, title, image_url: image ?? null, store };
+    const focal = image ? await computeFocal(image) : { x: 50, y: 50 };
+
+    return {
+      url,
+      title,
+      image_url: image ?? null,
+      store,
+      focal_x: focal.x,
+      focal_y: focal.y,
+    };
   } catch {
     // Timeout, DNS failure, blocked, etc. — degrade to a bare link.
-    return { url, title: null, image_url: null, store };
+    return { url, title: null, image_url: null, store, focal_x: 50, focal_y: 50 };
   }
 }

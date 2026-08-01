@@ -63,7 +63,10 @@ export default async function Home() {
                     target="_blank"
                     rel="noreferrer"
                     className="thumb"
-                    style={{ backgroundImage: `url("${item.image_url}")` }}
+                    style={{
+                      backgroundImage: `url("${item.image_url}")`,
+                      backgroundPosition: `${item.focal_x}% ${item.focal_y}%`,
+                    }}
                     aria-label={item.title ?? "item"}
                   />
                 ) : (

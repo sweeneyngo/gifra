@@ -28,12 +28,14 @@ export interface Item {
   store: string | null;
   status: ItemStatus;
   created_at: string;
+  focal_x: number; // visual-center crop, 0–100 (%)
+  focal_y: number;
 }
 
 export async function listItems(): Promise<Item[]> {
   // Received items sink to the bottom; newest first within a group.
   return (await sql`
-    select id, url, title, image_url, store, status, created_at
+    select id, url, title, image_url, store, status, created_at, focal_x, focal_y
     from items
     order by (status = 'received'), created_at desc
   `) as Item[];
@@ -48,7 +50,7 @@ export async function insertItem(fields: {
   const rows = (await sql`
     insert into items (url, title, image_url, store)
     values (${fields.url}, ${fields.title}, ${fields.image_url}, ${fields.store})
-    returning id, url, title, image_url, store, status, created_at
+    returning id, url, title, image_url, store, status, created_at, focal_x, focal_y
   `) as Item[];
   return rows[0];
 }
@@ -61,14 +63,18 @@ export async function deleteItem(id: string): Promise<void> {
   await sql`delete from items where id = ${id}`;
 }
 
-/** Fill in title/image once background enrichment finishes. */
+/** Fill in title/image/focal once background enrichment finishes. */
 export async function updateItemMeta(
   id: string,
   title: string | null,
   image_url: string | null,
+  focal_x = 50,
+  focal_y = 50,
 ): Promise<void> {
   await sql`
-    update items set title = ${title}, image_url = ${image_url}
+    update items
+    set title = ${title}, image_url = ${image_url},
+        focal_x = ${focal_x}, focal_y = ${focal_y}
     where id = ${id}
   `;
 }
@@ -80,7 +86,7 @@ export async function findItemsByQuery(
 ): Promise<Item[]> {
   const q = `%${query}%`;
   return (await sql`
-    select id, url, title, image_url, store, status, created_at
+    select id, url, title, image_url, store, status, created_at, focal_x, focal_y
     from items
     where title ilike ${q} or store ilike ${q} or url ilike ${q}
     order by created_at desc

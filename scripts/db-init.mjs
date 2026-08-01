@@ -18,7 +18,9 @@ await sql`
     image_url   text,
     store       text,
     status      text not null default 'wanted',
-    created_at  timestamptz not null default now()
+    created_at  timestamptz not null default now(),
+    focal_x     real not null default 50,
+    focal_y     real not null default 50
   )
 `;
 

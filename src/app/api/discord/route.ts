@@ -130,7 +130,13 @@ async function handleWishlist(body: Interaction): Promise<Response> {
     try {
       const data = await enrich(url);
       if (data.title || data.image_url) {
-        await updateItemMeta(itemId, data.title, data.image_url);
+        await updateItemMeta(
+          itemId,
+          data.title,
+          data.image_url,
+          data.focal_x,
+          data.focal_y,
+        );
       }
     } catch {
       /* item is already saved; it just keeps the URL as its label */
