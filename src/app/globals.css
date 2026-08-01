@@ -284,7 +284,10 @@ body::after {
   align-items: center;
   justify-content: center;
   color: var(--muted);
-  font-size: 12px;
+}
+
+.thumb.empty svg {
+  opacity: 0.45;
 }
 
 .body {
