@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 // Self-hosted at build time by next/font — no external requests at runtime.
@@ -22,7 +24,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={hanken.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
