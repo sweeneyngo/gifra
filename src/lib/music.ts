@@ -1,0 +1,96 @@
+import { sql } from "./db";
+import { presign } from "./r2";
+
+export interface Song {
+  hashId: string;
+  title: string;
+  description: string | null;
+  type: string;
+  version: number;
+  songGroupHashId: string | null;
+  releasedAt: string | null;
+  durationSec: number | null;
+  genres: string[];
+  tags: string[];
+  singers: string[];
+  artUrl: string | null; // presigned cover-art URL (24h)
+}
+
+interface Row {
+  hash_id: string;
+  title: string;
+  description: string | null;
+  type: string;
+  version: number;
+  song_group_hash_id: string | null;
+  released_at: string | null;
+  duration: number | null;
+  art_key: string | null;
+  genres: string[] | null;
+  tags: string[] | null;
+  singers: string[] | null;
+}
+
+/** Full library, each song joined with its art/audio/genre/tag/singer info. */
+export async function listSongs(): Promise<Song[]> {
+  const rows = (await sql`
+    select
+      s.hash_id, s.title, s.description, s.type, s.version,
+      s.song_group_hash_id, s.released_at,
+      (select am.duration
+         from music.media_sources m
+         join music.audio_metadata am on am.media_source_id = m.id
+         where m.song_hash_id = s.hash_id and m.file_type = 'audio'
+           and m.deleted_at is null
+         limit 1) as duration,
+      (select m.url
+         from music.media_sources m
+         where m.song_hash_id = s.hash_id and m.file_type = 'art'
+           and m.deleted_at is null
+         order by m.created_at desc limit 1) as art_key,
+      array(select g.name from music.song_genres sg
+            join music.genres g on g.id = sg.genre_id
+            where sg.song_id = s.id order by g.name) as genres,
+      array(select t.name from music.song_tags st
+            join music.tags t on t.id = st.tag_id
+            where st.song_id = s.id order by t.name) as tags,
+      array(select si.name from music.song_singers ss
+            join music.singers si on si.id = ss.singer_id
+            where ss.song_id = s.id
+            order by ss.role = 'main' desc, si.name) as singers
+    from music.songs s
+    where s.deleted_at is null
+    order by s.title
+  `) as Row[];
+
+  // Presign cover art in parallel (24h; the library view is long-lived).
+  return Promise.all(
+    rows.map(async (r) => ({
+      hashId: r.hash_id,
+      title: r.title,
+      description: r.description,
+      type: r.type,
+      version: r.version,
+      songGroupHashId: r.song_group_hash_id,
+      releasedAt: r.released_at,
+      durationSec: r.duration != null ? Number(r.duration) : null,
+      genres: r.genres ?? [],
+      tags: r.tags ?? [],
+      singers: r.singers ?? [],
+      artUrl: r.art_key ? await presign(r.art_key, 24 * 3600) : null,
+    })),
+  );
+}
+
+/** R2 object key for a song's audio file (for streaming). */
+export async function getAudioKey(hashId: string): Promise<string | null> {
+  const rows = (await sql`
+    select m.url
+    from music.media_sources m
+    where m.song_hash_id = ${hashId} and m.file_type = 'audio'
+      and m.deleted_at is null
+    order by m.created_at asc
+    limit 1
+  `) as { url: string }[];
+  return rows[0]?.url ?? null;
+}
