@@ -31,6 +31,7 @@ export function r2Configured(): boolean {
 export async function presign(
   key: string,
   expiresIn = 3600,
+  opts?: { downloadFilename?: string },
 ): Promise<string | null> {
   const c = client();
   const bucket = process.env.R2_BUCKET;
@@ -38,7 +39,18 @@ export async function presign(
   try {
     return await getSignedUrl(
       c,
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        // Force a download (with a proper UTF-8 filename) when requested.
+        ...(opts?.downloadFilename
+          ? {
+              ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(
+                opts.downloadFilename,
+              )}`,
+            }
+          : {}),
+      }),
       { expiresIn },
     );
   } catch {

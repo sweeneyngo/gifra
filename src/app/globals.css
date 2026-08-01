@@ -648,29 +648,35 @@ body::after {
   color: var(--text-strong);
 }
 .track-detail {
-  padding: 4px 12px 16px 68px;
+  padding: 2px 12px 18px;
   animation: fade 0.14s ease-out;
 }
 .desc {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--text);
   white-space: pre-wrap;
-  max-width: 640px;
+}
+.track-detail .desc {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
 }
 .versions {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-width: 460px;
 }
 .version-row {
   display: grid;
   grid-template-columns: 20px 34px auto 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
+  width: 100%;
+  padding: 8px 12px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -776,7 +782,7 @@ body::after {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  width: min(460px, 42vw);
+  width: min(340px, 34vw);
 }
 .np-controls {
   display: flex;
@@ -812,16 +818,91 @@ body::after {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.np-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.np-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.12s, background 0.12s;
+}
+.np-icon:hover {
+  color: var(--text-strong);
+  background: var(--card);
+}
+.np-icon.on {
+  color: var(--accent);
+}
 .np-vol {
   display: flex;
   align-items: center;
   gap: 8px;
-  justify-content: flex-end;
   color: var(--muted);
+  margin-left: 6px;
 }
 .np-vol input {
   width: 64px;
   flex: none;
+}
+
+/* Popovers above the bar (description / settings) */
+.np-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 20px;
+  z-index: 30;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  animation: pop 0.13s ease-out;
+}
+.np-desc-card {
+  width: min(420px, calc(100vw - 40px));
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.pop-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-bottom: 8px;
+}
+.np-settings-menu {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.setting:hover {
+  background: var(--card);
+}
+.setting input {
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 input[type="range"] {
   -webkit-appearance: none;
@@ -850,7 +931,9 @@ input[type="range"]::-moz-range-thumb {
   .nowplaying {
     grid-template-columns: 1fr auto;
   }
-  .np-vol {
+  /* Drop the seek + right cluster; controls become right-most. */
+  .np-seek,
+  .np-right {
     display: none;
   }
   .np-center {

@@ -23,6 +23,7 @@ interface Group {
   key: string;
   latest: Song; // highest version #
   versions: Song[]; // sorted newest-version first
+  publishedAt: string | null; // most recent release date across versions
 }
 
 export function MusicPlayer({ songs }: { songs: Song[] }) {
@@ -34,6 +35,10 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
   const [vol, setVol] = useState(1);
   const [q, setQ] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [showDesc, setShowDesc] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [autoplay, setAutoplay] = useState(true);
+  const [loop, setLoop] = useState(false);
 
   const byHash = useMemo(
     () => new Map(songs.map((s) => [s.hashId, s])),
@@ -53,13 +58,26 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
     return [...m.values()]
       .map((vs) => {
         const sorted = [...vs].sort((a, b) => b.version - a.version);
+        const publishedAt = vs.reduce<string | null>(
+          (max, v) =>
+            v.releasedAt && (!max || v.releasedAt > max) ? v.releasedAt : max,
+          null,
+        );
         return {
           key: sorted[0].songGroupHashId || sorted[0].hashId,
           latest: sorted[0],
           versions: sorted,
+          publishedAt,
         };
       })
-      .sort((a, b) => a.latest.title.localeCompare(b.latest.title));
+      // Default sort: most recently *published* first (nulls last).
+      .sort((a, b) => {
+        if (a.publishedAt && b.publishedAt)
+          return b.publishedAt.localeCompare(a.publishedAt);
+        if (a.publishedAt) return -1;
+        if (b.publishedAt) return 1;
+        return a.latest.title.localeCompare(b.latest.title);
+      });
   }, [songs]);
 
   const shown = useMemo(() => {
@@ -84,12 +102,22 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
       () => setPlaying(true),
       () => setPlaying(false),
     );
-  }, [currentHash]);
+    // Auto-expand the playing song's detail.
+    const g = groups.find((gr) =>
+      gr.versions.some((v) => v.hashId === currentHash),
+    );
+    setExpanded(g?.key ?? null);
+  }, [currentHash, groups]);
 
   useEffect(() => {
     const a = audioRef.current;
     if (a) a.volume = vol;
   }, [vol]);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a) a.loop = loop;
+  }, [loop]);
 
   function playHash(h: string) {
     if (h === currentHash) togglePlay();
@@ -292,17 +320,76 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
               </div>
             </div>
 
-            <div className="np-vol">
-              <VolIcon />
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={vol}
-                onChange={(e) => setVol(Number(e.target.value))}
-              />
+            <div className="np-right">
+              <button
+                className={`np-icon${showDesc ? " on" : ""}`}
+                aria-label="Description"
+                onClick={() => {
+                  setShowDesc((v) => !v);
+                  setShowSettings(false);
+                }}
+              >
+                <DescIcon />
+              </button>
+              <a
+                className="np-icon"
+                href={`/api/music/songs/${current.hashId}/stream?dl=1`}
+                download
+                aria-label="Download"
+              >
+                <DownloadIcon />
+              </a>
+              <button
+                className={`np-icon${showSettings ? " on" : ""}`}
+                aria-label="Settings"
+                onClick={() => {
+                  setShowSettings((v) => !v);
+                  setShowDesc(false);
+                }}
+              >
+                <GearIcon />
+              </button>
+              <div className="np-vol">
+                <VolIcon />
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={vol}
+                  onChange={(e) => setVol(Number(e.target.value))}
+                />
+              </div>
             </div>
+
+            {showDesc && (
+              <div className="np-popover np-desc-card">
+                <div className="pop-title">{current.title}</div>
+                <p className="desc">
+                  {current.description || "No description."}
+                </p>
+              </div>
+            )}
+            {showSettings && (
+              <div className="np-popover np-settings-menu">
+                <label className="setting">
+                  <span>Autoplay next</span>
+                  <input
+                    type="checkbox"
+                    checked={autoplay}
+                    onChange={(e) => setAutoplay(e.target.checked)}
+                  />
+                </label>
+                <label className="setting">
+                  <span>Loop track</span>
+                  <input
+                    type="checkbox"
+                    checked={loop}
+                    onChange={(e) => setLoop(e.target.checked)}
+                  />
+                </label>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -311,7 +398,9 @@ export function MusicPlayer({ songs }: { songs: Song[] }) {
         ref={audioRef}
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setDur(e.currentTarget.duration)}
-        onEnded={() => step(1)}
+        onEnded={() => {
+          if (autoplay) step(1);
+        }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
       />
@@ -348,5 +437,21 @@ const VolIcon = () => (
 const ChevronIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+const DescIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 6h16M4 12h16M4 18h10" />
+  </svg>
+);
+const DownloadIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" />
+  </svg>
+);
+const GearIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );

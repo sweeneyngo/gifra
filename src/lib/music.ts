@@ -73,7 +73,7 @@ export async function listSongs(): Promise<Song[]> {
       type: r.type,
       version: r.version,
       songGroupHashId: r.song_group_hash_id,
-      releasedAt: r.released_at,
+      releasedAt: r.released_at ? new Date(r.released_at).toISOString() : null,
       durationSec: r.duration != null ? Number(r.duration) : null,
       genres: r.genres ?? [],
       statusTags: r.status_tags ?? [],
