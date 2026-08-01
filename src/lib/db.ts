@@ -60,3 +60,30 @@ export async function setStatus(id: string, status: ItemStatus): Promise<void> {
 export async function deleteItem(id: string): Promise<void> {
   await sql`delete from items where id = ${id}`;
 }
+
+/** Fill in title/image once background enrichment finishes. */
+export async function updateItemMeta(
+  id: string,
+  title: string | null,
+  image_url: string | null,
+): Promise<void> {
+  await sql`
+    update items set title = ${title}, image_url = ${image_url}
+    where id = ${id}
+  `;
+}
+
+/** Fuzzy-find items by title / store / url for the owner manage commands. */
+export async function findItemsByQuery(
+  query: string,
+  limit = 5,
+): Promise<Item[]> {
+  const q = `%${query}%`;
+  return (await sql`
+    select id, url, title, image_url, store, status, created_at
+    from items
+    where title ilike ${q} or store ilike ${q} or url ilike ${q}
+    order by created_at desc
+    limit ${limit}
+  `) as Item[];
+}

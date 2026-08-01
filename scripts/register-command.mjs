@@ -14,34 +14,62 @@ if (!appId || !token) {
   process.exit(1);
 }
 
-const command = {
-  name: "wishlist",
-  description: "Add a link to your wishlist",
-  options: [
-    {
-      name: "url",
-      description: "The product link",
-      type: 3, // STRING
-      required: true,
-    },
-  ],
-};
+const STRING = 3;
+const OWNER_ONLY = "0"; // default_member_permissions: hidden from non-admins
+
+const commands = [
+  {
+    name: "wishlist",
+    description: "Add a link to your wishlist",
+    options: [
+      { name: "url", description: "The product link", type: STRING, required: true },
+    ],
+  },
+  {
+    name: "received",
+    description: "Mark a wishlist item as received (owner only)",
+    default_member_permissions: OWNER_ONLY,
+    options: [
+      {
+        name: "query",
+        description: "Search by title, store, or link",
+        type: STRING,
+        required: true,
+      },
+    ],
+  },
+  {
+    name: "remove",
+    description: "Remove a wishlist item (owner only)",
+    default_member_permissions: OWNER_ONLY,
+    options: [
+      {
+        name: "query",
+        description: "Search by title, store, or link",
+        type: STRING,
+        required: true,
+      },
+    ],
+  },
+];
 
 const endpoint = guildId
   ? `https://discord.com/api/v10/applications/${appId}/guilds/${guildId}/commands`
   : `https://discord.com/api/v10/applications/${appId}/commands`;
 
+// PUT bulk-overwrites the full command set (idempotent; prunes old commands).
 const res = await fetch(endpoint, {
-  method: "POST",
+  method: "PUT",
   headers: {
     Authorization: `Bot ${token}`,
     "Content-Type": "application/json",
   },
-  body: JSON.stringify(command),
+  body: JSON.stringify(commands),
 });
 
 if (res.ok) {
-  console.log(`✅ /wishlist registered (${guildId ? "guild" : "global"}).`);
+  const names = commands.map((c) => `/${c.name}`).join(", ");
+  console.log(`✅ Registered ${names} (${guildId ? "guild" : "global"}).`);
 } else {
   console.error(`❌ ${res.status}:`, await res.text());
   process.exit(1);

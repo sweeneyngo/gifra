@@ -54,7 +54,7 @@ export async function enrich(url: string): Promise<Enriched> {
   const store = storeName(url);
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(url, {
       headers: { "User-Agent": UA, Accept: "text/html" },
       signal: controller.signal,
