@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
+import { Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+
+// Self-hosted at build time by next/font — no external requests at runtime.
+const hanken = Hanken_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-hanken",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "My Wishlist",
@@ -12,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={hanken.variable}>
       <body>{children}</body>
     </html>
   );
