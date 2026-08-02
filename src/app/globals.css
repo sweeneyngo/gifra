@@ -363,6 +363,7 @@ body::after {
 /* Numeric score at the card bottom, tinted the same red->green. */
 .score-num {
   flex-shrink: 0;
+  align-self: flex-end; /* flush to the bottom-right of the meta row */
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
