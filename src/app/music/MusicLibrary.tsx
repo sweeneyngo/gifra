@@ -88,6 +88,8 @@ export function MusicLibrary({ songs }: { songs: Song[] }) {
       <div className="music-filters">
         <input
           className="music-search"
+          type="search"
+          aria-label="Search songs by title or singer"
           placeholder="Search title or singer…"
           value={q}
           onChange={(e) => setQ(e.target.value)}

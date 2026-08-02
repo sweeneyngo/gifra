@@ -1,23 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const CONTACT_EMAIL = "sweeneyngo@proton.me";
 
 export function TopActions() {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
-  // Close on Escape while the modal is open.
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus(); // return focus to the trigger
+  };
+
+  // On open: move focus into the dialog and close on Escape.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (
     <div className="top-actions">
-      <button className="btn" onClick={() => setOpen(true)}>
+      <button ref={triggerRef} className="btn" onClick={() => setOpen(true)}>
         What is this?
       </button>
 
@@ -43,7 +51,7 @@ export function TopActions() {
       </a>
 
       {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
+        <div className="modal-backdrop" onClick={close}>
           <div
             className="modal"
             role="dialog"
@@ -52,8 +60,9 @@ export function TopActions() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              ref={closeRef}
               className="modal-close"
-              onClick={() => setOpen(false)}
+              onClick={close}
               aria-label="Close"
             >
               ✕

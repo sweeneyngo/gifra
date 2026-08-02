@@ -467,6 +467,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 <span>{fmt(time)}</span>
                 <input
                   type="range"
+                  aria-label="Seek"
                   min={0}
                   max={dur || 0}
                   step={0.1}
@@ -528,6 +529,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 <VolIcon />
                 <input
                   type="range"
+                  aria-label="Volume"
                   min={0}
                   max={1}
                   step={0.01}
@@ -592,6 +594,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   <input
                     className="cf-slider"
                     type="range"
+                    aria-label="Crossfade seconds"
                     min={1}
                     max={12}
                     step={1}
