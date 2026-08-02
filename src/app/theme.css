@@ -22,7 +22,7 @@
   --line: rgba(255, 255, 255, 0.08);
   --line-v: rgba(255, 255, 255, 0.15);
 
-  /* Accents — from banner.jpg */
-  --accent: #63c8cc; /* teal — banner's dominant vibrant hue (pool glow) */
-  --accent-2: #d49b73; /* warm — banner string-light amber */
+  /* Accents — warm amber from banner.jpg (the string-light glow) + a variant */
+  --accent: #d9a15f; /* warm golden amber — primary */
+  --accent-2: #e4b98d; /* lighter amber — secondary/variant */
 }

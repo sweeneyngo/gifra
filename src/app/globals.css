@@ -464,13 +464,14 @@ body::after {
 }
 .music-head h1 {
   margin: 0;
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 700;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--text-strong);
 }
 .music-desc {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   font-size: 14px;
   color: var(--text);
 }
@@ -478,7 +479,7 @@ body::after {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-top: 5px;
+  margin-top: 3px;
 }
 .music-updated {
   font-size: 12px;
