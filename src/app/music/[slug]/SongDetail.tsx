@@ -5,30 +5,33 @@ import { useEffect } from "react";
 import type { Song } from "@/lib/music";
 import { usePlayer } from "@/app/player/PlayerProvider";
 import { CoverArt } from "@/app/CoverArt";
+import { Waveform } from "./Waveform";
 import { type Group, fmt, fmtDate } from "../lib";
 
 export function SongDetail({
   group,
   songs,
+  waveforms,
 }: {
   group: Group;
   songs: Song[];
+  waveforms: Record<string, number[]>;
 }) {
   const player = usePlayer();
-  const s = group.latest;
 
-  // Load the full library into the player, then best-effort auto-play this track
-  // (browsers may block autoplay without a gesture — the Play button covers that).
   useEffect(() => {
     player.hydrate(songs);
   }, [songs, player]);
   useEffect(() => {
-    player.playHash(s.hashId);
+    player.playHash(group.latest.hashId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isPlaying = (hash: string) =>
-    player.currentHash === hash && player.playing;
+  const head = group.latest; // group identity (title / art / description)
+  const active =
+    group.versions.find((v) => v.hashId === player.currentHash) ?? head;
+  const playing = player.currentHash === active.hashId && player.playing;
+  const peaks = waveforms[active.hashId] ?? waveforms[head.hashId] ?? [];
 
   return (
     <div className="wrap song-page">
@@ -37,33 +40,43 @@ export function SongDetail({
         ← Music Library
       </Link>
 
-      <div className="song-hero">
-        <div className="song-cover">
-          <CoverArt src={s.artUrl} alt={s.title} />
-        </div>
-        <div className="song-info">
-          <h1>{s.title}</h1>
-          <div className="song-singers">{s.singers.join(", ")}</div>
-          {s.genres.length > 0 && (
-            <div className="song-genres">{s.genres.join(" · ")}</div>
-          )}
-          <div className="song-facts">
-            {s.durationSec != null && <span>{fmt(s.durationSec)}</span>}
-            {s.releasedAt && <span>{fmtDate(s.releasedAt)}</span>}
-            {group.versions.length > 1 && (
-              <span>{group.versions.length} versions</span>
-            )}
+      <div className="sc-hero">
+        <div className="sc-main">
+          <div className="sc-top">
+            <button
+              className="sc-play"
+              onClick={() => player.playHash(active.hashId)}
+              aria-label={playing ? "Pause" : "Play"}
+            >
+              {playing ? <Pause /> : <Play />}
+            </button>
+            <div className="sc-titles">
+              <h1>{head.title}</h1>
+              <div className="sc-artist">{head.singers.join(", ")}</div>
+            </div>
+            <div className="sc-meta">
+              {head.releasedAt && <span>{fmtDate(head.releasedAt)}</span>}
+              {head.genres[0] && (
+                <span className="sc-tag"># {head.genres[0].toLowerCase()}</span>
+              )}
+            </div>
           </div>
-          <button
-            className="song-play"
-            onClick={() => player.playHash(s.hashId)}
-          >
-            {isPlaying(s.hashId) ? "⏸ Pause" : "▶ Play"}
-          </button>
+
+          {peaks.length > 0 && (
+            <Waveform
+              peaks={peaks}
+              hash={active.hashId}
+              duration={active.durationSec}
+            />
+          )}
+        </div>
+
+        <div className="sc-cover">
+          <CoverArt src={head.artUrl} alt={head.title} />
         </div>
       </div>
 
-      {s.description && <p className="song-desc">{s.description}</p>}
+      {head.description && <p className="song-desc">{head.description}</p>}
 
       {group.versions.length > 1 && (
         <div className="song-versions">
@@ -74,7 +87,9 @@ export function SongDetail({
               className={`version-row${v.hashId === player.currentHash ? " current" : ""}`}
               onClick={() => player.playHash(v.hashId)}
             >
-              <span className="v-play">{isPlaying(v.hashId) ? "⏸" : "▶"}</span>
+              <span className="v-play">
+                {v.hashId === player.currentHash && player.playing ? "⏸" : "▶"}
+              </span>
               <span className="v-num">v{v.version}</span>
               {i === 0 && <span className="v-latest">latest</span>}
               <span className="v-date">{fmtDate(v.releasedAt)}</span>
@@ -88,3 +103,14 @@ export function SongDetail({
     </div>
   );
 }
+
+const Play = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
+const Pause = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+  </svg>
+);

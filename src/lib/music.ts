@@ -121,6 +121,23 @@ export async function getAudioKey(hashId: string): Promise<string | null> {
   return rows[0]?.url ?? null;
 }
 
+/** Precomputed waveform peaks (0..1) keyed by song hash, for given versions. */
+export async function getWaveforms(
+  hashes: string[],
+): Promise<Record<string, number[]>> {
+  if (hashes.length === 0) return {};
+  const rows = (await sql`
+    select m.song_hash_id as hash, am.waveform
+    from music.media_sources m
+    join music.audio_metadata am on am.media_source_id = m.id
+    where m.file_type = 'audio' and m.deleted_at is null
+      and m.song_hash_id = any(${hashes})
+  `) as { hash: string; waveform: number[] | null }[];
+  const out: Record<string, number[]> = {};
+  for (const r of rows) if (r.waveform) out[r.hash] = r.waveform;
+  return out;
+}
+
 /** R2 object key for a song's cover art (for a stable, always-fresh art URL). */
 export async function getArtKey(hashId: string): Promise<string | null> {
   const rows = (await sql`

@@ -23,6 +23,8 @@ interface PlayerCtx {
   playing: boolean;
   hydrate: (songs: Song[]) => void;
   playHash: (hash: string) => void;
+  seek: (t: number) => void;
+  getProgress: () => { time: number; dur: number };
 }
 
 const Ctx = createContext<PlayerCtx | null>(null);
@@ -208,6 +210,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [currentHash, crossfade, playing, startTrack, togglePlay],
   );
+  // Stable (read refs) — safe to expose without churning the context value.
+  const seek = useCallback((t: number) => {
+    const a = activeEl();
+    if (a) {
+      a.currentTime = t;
+      setTime(t);
+    }
+  }, []);
+  const getProgress = useCallback(
+    () => ({
+      time: activeEl()?.currentTime ?? 0,
+      dur: activeEl()?.duration || 0,
+    }),
+    [],
+  );
 
   function stop() {
     if (elA.current) elA.current.pause();
@@ -361,8 +378,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [playing]);
 
   const ctxValue = useMemo<PlayerCtx>(
-    () => ({ currentHash, playing, hydrate, playHash }),
-    [currentHash, playing, hydrate, playHash],
+    () => ({ currentHash, playing, hydrate, playHash, seek, getProgress }),
+    [currentHash, playing, hydrate, playHash, seek, getProgress],
   );
 
   const currentGroup = current ? groupOf(current.hashId) : null;

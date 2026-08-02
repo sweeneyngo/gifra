@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { listSongs } from "@/lib/music";
+import { listSongs, getWaveforms } from "@/lib/music";
 import { groupSongs, slugify } from "../lib";
 import { SongDetail } from "./SongDetail";
 
@@ -53,5 +53,6 @@ export default async function SongPage({
   const { slug } = await params;
   const { songs, group } = await resolve(slug);
   if (!group) notFound();
-  return <SongDetail group={group} songs={songs} />;
+  const waveforms = await getWaveforms(group.versions.map((v) => v.hashId));
+  return <SongDetail group={group} songs={songs} waveforms={waveforms} />;
 }
