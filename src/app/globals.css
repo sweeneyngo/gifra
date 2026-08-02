@@ -358,26 +358,26 @@ body::after {
   font-size: 11px;
 }
 
-/* "Recommended" badge — cover corner in grid, star beside the name in list. */
-.rec-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  display: inline-flex;
+/* Recommended (gold star) / Underrated (gem) markers sit next to the game name
+   in both views. */
+.name-row {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px 3px 6px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #191919;
-  font-size: 11px;
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  gap: 6px;
+}
+.name-row .name {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .rec-star {
   flex: none;
   display: inline-flex;
   color: var(--accent);
+}
+.underrated-star {
+  flex: none;
+  display: inline-flex;
+  color: #9aa0ee;
 }
 
 /* Supported-platform icons (text pill is a fallback for unmapped platforms). */

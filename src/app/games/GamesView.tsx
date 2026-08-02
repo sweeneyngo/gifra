@@ -34,9 +34,21 @@ function scoreColor(score: number): string {
   return `hsl(${hue}, 65%, 48%)`;
 }
 
+// A game I rate highly (≥6) that relatively few people have rated (<1000):
+// a hidden gem. itch community averages skew uniformly high, so the rating
+// *count* is the discriminating "under-the-radar" signal, not the average.
+const isUnderrated = (g: Game) =>
+  g.score != null && g.score >= 6 && g.rating_count != null && g.rating_count < 1000;
+
 const StarIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+  </svg>
+);
+
+const GemIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M6 2h12l4 7-10 13L2 9z" />
   </svg>
 );
 
@@ -94,17 +106,24 @@ function GridCard({ game }: { game: Game }) {
             title={`My score: ${game.score}/10`}
           />
         )}
-        {game.recommended && (
-          <span className="rec-badge" title="Recommended">
-            <StarIcon /> Recommended
-          </span>
-        )}
       </a>
 
       <div className="body">
-        <a href={game.url} target="_blank" rel="noreferrer" className="name">
-          {game.title ?? game.url}
-        </a>
+        <div className="name-row">
+          <a href={game.url} target="_blank" rel="noreferrer" className="name">
+            {game.title ?? game.url}
+          </a>
+          {game.recommended && (
+            <span className="rec-star" title="Recommended" aria-label="Recommended">
+              <StarIcon />
+            </span>
+          )}
+          {isUnderrated(game) && (
+            <span className="underrated-star" title="Underrated" aria-label="Underrated">
+              <GemIcon />
+            </span>
+          )}
+        </div>
 
         <PlatformIcons platforms={parsePlatforms(game.platforms)} />
 
@@ -146,6 +165,11 @@ function ListRow({ game }: { game: Game }) {
       {game.recommended && (
         <span className="rec-star" title="Recommended" aria-label="Recommended">
           <StarIcon />
+        </span>
+      )}
+      {isUnderrated(game) && (
+        <span className="underrated-star" title="Underrated" aria-label="Underrated">
+          <GemIcon />
         </span>
       )}
       <PlatformIcons platforms={parsePlatforms(game.platforms)} />

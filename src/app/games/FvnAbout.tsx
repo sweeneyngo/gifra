@@ -57,6 +57,11 @@ export function FvnAbout() {
               each one &mdash; Completed, In&nbsp;progress, Incomplete, Dropped,
               or Plan&nbsp;to&nbsp;read. Anything unrated is still on the pile.
             </p>
+            <p>
+              A gold star marks a personal pick (<strong>Recommended</strong>),
+              and a gem marks an <strong>Underrated</strong> one &mdash; a game I
+              rate highly that relatively few people have rated.
+            </p>
           </div>
         </div>
       )}
