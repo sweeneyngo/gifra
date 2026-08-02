@@ -31,7 +31,7 @@ export function r2Configured(): boolean {
 export async function presign(
   key: string,
   expiresIn = 3600,
-  opts?: { downloadFilename?: string },
+  opts?: { downloadFilename?: string; responseContentType?: string },
 ): Promise<string | null> {
   const c = client();
   const bucket = process.env.R2_BUCKET;
@@ -49,6 +49,11 @@ export async function presign(
                 opts.downloadFilename,
               )}`,
             }
+          : {}),
+        // Override the stored content-type (R2 keeps octet-stream) so images
+        // unfurl correctly in OG crawlers.
+        ...(opts?.responseContentType
+          ? { ResponseContentType: opts.responseContentType }
           : {}),
       }),
       { expiresIn },
