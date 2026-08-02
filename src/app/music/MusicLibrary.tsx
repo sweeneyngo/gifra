@@ -174,8 +174,10 @@ export function MusicLibrary({ songs }: { songs: Song[] }) {
                               <PlayIcon />
                             )}
                           </span>
-                          <span className="v-num">v{v.version}</span>
-                          {i === 0 && <span className="v-latest">latest</span>}
+                          <span className="v-num">
+                            v{v.version}
+                            {i === 0 && <em className="v-latest">latest</em>}
+                          </span>
                           <span className="v-date">{fmtDate(v.releasedAt)}</span>
                           <span className="v-dur">
                             {v.durationSec != null ? fmt(v.durationSec) : ""}

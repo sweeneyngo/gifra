@@ -60,17 +60,19 @@ export function Waveform({
   ));
 
   return (
-    <div className="wave" ref={rootRef} onClick={onSeek}>
-      <div className="wave-base">{bars}</div>
-      <div className="wave-played" ref={playedRef}>
-        {bars}
+    <div className="wave-wrap">
+      <div className="wave" ref={rootRef} onClick={onSeek}>
+        <div className="wave-base">{bars}</div>
+        <div className="wave-played" ref={playedRef}>
+          {bars}
+        </div>
       </div>
-      <span className="wave-time cur" ref={curRef}>
-        0:00
-      </span>
-      <span className="wave-time total">
-        {duration != null ? fmt(duration) : ""}
-      </span>
+      <div className="wave-times">
+        <span className="cur" ref={curRef}>
+          0:00
+        </span>
+        <span>{duration != null ? fmt(duration) : ""}</span>
+      </div>
     </div>
   );
 }

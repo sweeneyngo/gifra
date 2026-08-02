@@ -697,7 +697,7 @@ body::after {
 }
 .version-row {
   display: grid;
-  grid-template-columns: 20px 34px auto 1fr auto;
+  grid-template-columns: 18px auto 1fr auto;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -723,6 +723,9 @@ body::after {
   color: inherit;
 }
 .v-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;
@@ -730,12 +733,16 @@ body::after {
 .v-latest {
   font-size: 10px;
   font-weight: 600;
+  font-style: normal;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .v-date {
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .v-dur {
   color: var(--muted);
@@ -1133,16 +1140,18 @@ input[type="range"]::-moz-range-thumb {
   filter: brightness(1.08);
 }
 .song-desc {
-  margin: 30px 0 0;
-  max-width: 640px;
+  margin: 24px 0 0;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   font-size: 14px;
   line-height: 1.6;
   color: var(--text);
   white-space: pre-wrap;
 }
 .song-versions {
-  margin-top: 30px;
-  max-width: 540px;
+  margin-top: 18px;
 }
 .song-permalink {
   display: inline-block;
@@ -1170,14 +1179,18 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ============ SoundCloud-style song hero ============ */
-.sc-hero {
+.sc-layout {
   display: flex;
   gap: 24px;
   align-items: flex-start;
 }
-.sc-main {
+.sc-left {
   flex: 1;
   min-width: 0;
+}
+.sc-right {
+  width: 260px;
+  flex-shrink: 0;
 }
 .sc-top {
   display: flex;
@@ -1241,19 +1254,20 @@ input[type="range"]::-moz-range-thumb {
 }
 .sc-cover {
   position: relative;
-  width: 260px;
-  height: 260px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 6px;
   overflow: hidden;
   background: #141414;
-  flex-shrink: 0;
 }
 
 /* Waveform scrubber */
+.wave-wrap {
+  margin-top: 20px;
+}
 .wave {
   position: relative;
   height: 92px;
-  margin: 20px 0 4px;
   cursor: pointer;
 }
 .wave-base,
@@ -1280,32 +1294,25 @@ input[type="range"]::-moz-range-thumb {
 .wave-played span {
   background: var(--accent);
 }
-.wave-time {
-  position: absolute;
-  bottom: 4px;
+.wave-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 1px 5px;
-  border-radius: 3px;
-  pointer-events: none;
-}
-.wave-time.cur {
-  left: 0;
-  color: var(--accent);
-}
-.wave-time.total {
-  right: 0;
   color: var(--muted);
 }
+.wave-times .cur {
+  color: var(--accent);
+}
 @media (max-width: 640px) {
-  .sc-hero {
+  .sc-layout {
     flex-direction: column;
   }
-  .sc-cover {
+  .sc-right {
     width: 100%;
-    height: auto;
-    aspect-ratio: 1;
+  }
+  .sc-cover {
     max-width: 320px;
   }
   .sc-titles h1 {
