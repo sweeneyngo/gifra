@@ -31,7 +31,11 @@ export const usePlayer = () => {
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [normalize, setNormalize] = useState(false);
   const [currentHash, setCurrentHash] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -74,18 +78,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const hydrate = useCallback((s: Song[]) => {
     setSongs((prev) => (prev.length === 0 && s.length ? s : prev));
   }, []);
+  // Lazily build the Web Audio graph on first play (needs a user gesture):
+  //   <audio> → gain (normalize) → analyser (meter) → speakers.
+  // If it fails (e.g. CORS), the element keeps playing directly.
+  const ensureGraph = useCallback(() => {
+    if (audioCtxRef.current || !audioRef.current) return;
+    try {
+      const AC =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      const ctx = new AC();
+      const src = ctx.createMediaElementSource(audioRef.current);
+      const gain = ctx.createGain();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      src.connect(gain);
+      gain.connect(analyser);
+      analyser.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      gainRef.current = gain;
+      analyserRef.current = analyser;
+    } catch {
+      /* graph unavailable — direct playback still works */
+    }
+  }, []);
   const togglePlay = useCallback(() => {
     const a = audioRef.current;
     if (!a) return;
+    ensureGraph();
+    audioCtxRef.current?.resume();
     if (a.paused) a.play();
     else a.pause();
-  }, []);
+  }, [ensureGraph]);
   const playHash = useCallback(
     (h: string) => {
+      ensureGraph();
+      audioCtxRef.current?.resume();
       if (h === currentHash) togglePlay();
       else setCurrentHash(h);
     },
-    [currentHash, togglePlay],
+    [currentHash, togglePlay, ensureGraph],
   );
 
   // Stable context value: only changes when currentHash/playing change, NOT on
@@ -138,9 +171,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const a = audioRef.current;
     if (!a || !currentHash) return;
+    ensureGraph();
+    audioCtxRef.current?.resume();
     a.src = `/api/music/songs/${currentHash}/stream`;
     a.play().catch(() => setPlaying(false));
-  }, [currentHash]);
+  }, [currentHash, ensureGraph]);
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = vol;
   }, [vol]);
@@ -150,6 +185,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (audioRef.current) audioRef.current.loop = repeat === "one";
   }, [repeat, currentHash]);
+
+  // Loudness normalization: gain = 10^((target − trackLUFS)/20), target −14 LUFS.
+  useEffect(() => {
+    const g = gainRef.current;
+    const ctx = audioCtxRef.current;
+    if (!g || !ctx) return;
+    const lufs = current?.lufs ?? null;
+    const val =
+      normalize && lufs != null ? Math.pow(10, (-14 - lufs) / 20) : 1;
+    g.gain.setTargetAtTime(val, ctx.currentTime, 0.08);
+  }, [normalize, current]);
 
   const currentGroup = current ? groupOf(current.hashId) : null;
   const showVer = current && currentGroup && currentGroup.versions.length > 1;
@@ -296,11 +342,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                       <dd>{v}</dd>
                     </div>
                   ))}
-                  {specRows(current).length === 0 && (
-                    <div className="info-row">
-                      <dd>No audio details.</dd>
-                    </div>
-                  )}
+                  <div className="info-row">
+                    <dt>Level (RMS)</dt>
+                    <dd>
+                      <LiveLevel analyser={analyserRef.current} playing={playing} />
+                    </dd>
+                  </div>
                 </dl>
               </div>
             )}
@@ -312,6 +359,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             )}
             {showSettings && (
               <div className="np-popover np-settings-menu">
+                <label className="setting-toggle">
+                  <span>
+                    Normalize volume<small>−14 LUFS</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={normalize}
+                    onChange={(e) => setNormalize(e.target.checked)}
+                  />
+                </label>
                 <div className="setting-label">Playback speed</div>
                 <div className="speed-row">
                   {[0.5, 0.75, 1, 1.25, 1.5, 2].map((sp) => (
@@ -332,6 +389,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       <audio
         ref={audioRef}
+        crossOrigin="anonymous"
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setDur(e.currentTarget.duration)}
         onEnded={onEnded}
@@ -356,6 +414,36 @@ function specRows(s: Song): [string, string][] {
   if (s.durationSec != null) rows.push(["Duration", fmt(s.durationSec)]);
   if (s.lufs != null) rows.push(["Loudness", `${s.lufs.toFixed(1)} LUFS`]);
   return rows;
+}
+
+/** Live RMS level (dBFS) read from the analyser while playing. */
+function LiveLevel({
+  analyser,
+  playing,
+}: {
+  analyser: AnalyserNode | null;
+  playing: boolean;
+}) {
+  const [db, setDb] = useState<number | null>(null);
+  useEffect(() => {
+    if (!analyser || !playing) return;
+    const buf = new Float32Array(analyser.fftSize);
+    let raf = 0;
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+      const rms = Math.sqrt(sum / buf.length);
+      setDb(rms > 1e-7 ? 20 * Math.log10(rms) : -Infinity);
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, [analyser, playing]);
+
+  if (!analyser) return <span>—</span>;
+  if (db == null || !isFinite(db)) return <span>−∞ dB</span>;
+  return <span>{db.toFixed(1)} dB</span>;
 }
 
 /* ---- icons ---- */
