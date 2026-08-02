@@ -5,6 +5,7 @@ import {
   enrich,
   scanForProductImage,
   jsonLdImage,
+  parseItchDetails,
 } from "./enrich";
 
 describe("storeName", () => {
@@ -19,6 +20,82 @@ describe("storeName", () => {
   });
   it("returns null on non-URLs", () => {
     expect(storeName("not a url")).toBeNull();
+  });
+  it("labels itch.io", () => {
+    expect(storeName("https://dev.itch.io/game")).toBe("itch.io");
+  });
+});
+
+// A trimmed-down copy of a real itch.io game page: JSON-LD product name, the
+// info-panel table (Updated/Status/Platforms), and platform download icons.
+const ITCH_HTML = `<html><head>
+  <meta property="og:image" content="https://img.itch.zone/cover.png" />
+  <script type="application/ld+json">{"@type":"Product","name":"Your Happy Place"}</script>
+</head><body>
+  <div class="game_info_panel_widget"><table><tbody>
+    <tr><td>Updated</td><td><abbr title="30 July 2026 @ 12:17 UTC">2 days ago</abbr></td></tr>
+    <tr><td>Published</td><td><abbr title="20 July 2026 @ 23:54 UTC">12 days ago</abbr></td></tr>
+    <tr><td>Status</td><td><a href="#">Released</a></td></tr>
+    <tr><td>Platforms</td><td>Windows, Linux</td></tr>
+  </tbody></table></div>
+  <div class="download_platforms">
+    <span class="icon icon-windows8"></span>
+    <span class="icon icon-tux"></span>
+  </div>
+</body></html>`;
+
+describe("parseItchDetails", () => {
+  const d = parseItchDetails(parse(ITCH_HTML));
+
+  it("reads the clean product name from JSON-LD", () => {
+    expect(d.title).toBe("Your Happy Place");
+  });
+  it("reads the dev status", () => {
+    expect(d.dev_status).toBe("Released");
+  });
+  it("normalizes the Updated timestamp to ISO", () => {
+    expect(d.updated_at).toBe("2026-07-30T12:17:00.000Z");
+  });
+  it("resolves platforms from download icons", () => {
+    expect(d.platforms).toEqual(["Windows", "Linux"]);
+  });
+
+  it("falls back to Published when a game was never updated", () => {
+    const html = ITCH_HTML.replace(/<tr><td>Updated.*?<\/tr>/s, "");
+    expect(parseItchDetails(parse(html)).updated_at).toBe(
+      "2026-07-20T23:54:00.000Z",
+    );
+  });
+  it("falls back to a 'Release date' row (established pages)", () => {
+    const html = `<html><body><div class="game_info_panel_widget"><table><tbody>
+      <tr><td>Release date</td><td><abbr title="01 April 2022 @ 02:45 UTC">Apr 01, 2022</abbr></td></tr>
+    </tbody></table></div></body></html>`;
+    expect(parseItchDetails(parse(html)).updated_at).toBe(
+      "2022-04-01T02:45:00.000Z",
+    );
+  });
+  it("maps an HTML5 platform row to Web", () => {
+    const html = `<html><body><div class="game_info_panel_widget"><table><tbody>
+      <tr><td>Platforms</td><td>HTML5, Windows, Android</td></tr>
+    </tbody></table></div></body></html>`;
+    expect(parseItchDetails(parse(html)).platforms).toEqual([
+      "Windows",
+      "Android",
+      "Web",
+    ]);
+  });
+  it("uses the Platforms row when there are no download icons", () => {
+    const html = ITCH_HTML.replace(/<div class="download_platforms">.*?<\/div>/s, "");
+    expect(parseItchDetails(parse(html)).platforms).toEqual(["Windows", "Linux"]);
+  });
+  it("degrades to neutral values on a non-itch page", () => {
+    const d = parseItchDetails(parse("<html><body>nope</body></html>"));
+    expect(d).toEqual({
+      title: null,
+      platforms: [],
+      dev_status: null,
+      updated_at: null,
+    });
   });
 });
 
@@ -101,6 +178,25 @@ describe("enrich", () => {
     expect(r.title).toBeNull();
     expect(r.image_url).toBeNull();
     expect(r.store).toBe("Example");
+    expect(r.platforms).toEqual([]);
+    expect(r.dev_status).toBeNull();
+  });
+
+  it("layers itch.io game details onto the generic result", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (u: string) => {
+        if (u.includes("itch.io")) return { ok: true, status: 200, text: async () => ITCH_HTML };
+        return { ok: false, status: 404 }; // cover image → default focal
+      }),
+    );
+    const r = await enrich("https://dev.itch.io/game");
+    expect(r.title).toBe("Your Happy Place"); // clean name, not "<title>"
+    expect(r.image_url).toBe("https://img.itch.zone/cover.png");
+    expect(r.store).toBe("itch.io");
+    expect(r.dev_status).toBe("Released");
+    expect(r.platforms).toEqual(["Windows", "Linux"]);
+    expect(r.updated_at).toBe("2026-07-30T12:17:00.000Z");
   });
 });
 
