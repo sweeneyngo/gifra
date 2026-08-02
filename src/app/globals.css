@@ -296,10 +296,28 @@ body::after {
   color: var(--accent);
 }
 
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
 .meta {
   color: var(--muted);
   font-size: 12px;
-  margin-top: auto;
+}
+.compare-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--muted);
+  transition: color 0.12s, background 0.12s;
+}
+.compare-btn:hover {
+  color: var(--accent);
+  background: var(--card-hover);
 }
 
 .received-tag {
@@ -307,27 +325,6 @@ body::after {
   font-weight: 600;
 }
 
-.compare {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  font-size: 12px;
-}
-.compare-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-.compare a {
-  color: var(--accent);
-  text-decoration: none;
-}
-.compare a:hover {
-  text-decoration: underline;
-}
 
 .empty-state {
   color: var(--muted);

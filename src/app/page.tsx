@@ -80,32 +80,27 @@ export default async function Home() {
                     {item.title ?? item.url}
                   </a>
 
-                  <div className="meta">
-                    {received && <span className="received-tag">Received · </span>}
-                    {item.store ? `${item.store} · ` : ""}
-                    {dateFmt.format(new Date(item.created_at))}
-                  </div>
-
-                  {item.title && (
-                    <div className="compare">
-                      <span className="compare-label">Deals</span>
+                  <div className="meta-row">
+                    <div className="meta">
+                      {received && (
+                        <span className="received-tag">Received · </span>
+                      )}
+                      {item.store ? `${item.store} · ` : ""}
+                      {dateFmt.format(new Date(item.created_at))}
+                    </div>
+                    {item.title && (
                       <a
+                        className="compare-btn"
                         href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.title)}`}
                         target="_blank"
                         rel="noreferrer"
+                        aria-label="Compare prices on Google Shopping"
+                        title="Compare prices on Google Shopping"
                       >
-                        Shopping ↗
+                        <TagIcon />
                       </a>
-                      <a
-                        href={`https://camelcamelcamel.com/search?sq=${encodeURIComponent(item.title)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Amazon price history"
-                      >
-                        Camel ↗
-                      </a>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -147,6 +142,13 @@ export default async function Home() {
   );
 }
 
+
+const TagIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L3 13V3h10z" />
+    <circle cx="7.5" cy="7.5" r="1.5" />
+  </svg>
+);
 
 /* ---- Official brand marks (simple-icons), icon-only + linked ---- */
 function BrandLink({
