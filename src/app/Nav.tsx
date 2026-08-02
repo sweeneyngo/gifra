@@ -7,7 +7,7 @@ import { PawMark } from "./paw";
 const TABS = [
   { href: "/", label: "Wishlist" },
   { href: "/music", label: "Music" },
-  { href: "/games", label: "Games" },
+  { href: "/games", label: "FVNs" },
 ];
 
 export function Nav() {

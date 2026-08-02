@@ -4,7 +4,7 @@ import { GamesView } from "./GamesView";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_TITLE = "My Games";
+const PAGE_TITLE = "FVNs";
 const OWNER_HANDLE = "ifuxyl";
 
 export default async function Games() {
