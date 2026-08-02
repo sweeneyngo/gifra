@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { listGames } from "@/lib/db";
 import { CoverArt } from "../CoverArt";
 import { GamesView } from "./GamesView";
+import { FvnAbout } from "./FvnAbout";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "FVNs" };
 
 const PAGE_TITLE = "FVNs";
 const OWNER_HANDLE = "ifuxyl";
@@ -22,6 +25,7 @@ export default async function Games() {
             <span className="eyebrow">{OWNER_HANDLE}</span>
             <h1>{PAGE_TITLE}</h1>
           </div>
+          <FvnAbout />
         </div>
       </header>
 
