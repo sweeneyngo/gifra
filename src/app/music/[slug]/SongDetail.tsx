@@ -41,7 +41,7 @@ export function SongDetail({
       </Link>
 
       <div className="sc-layout">
-        <div className="sc-left">
+        <div className="sc-hero-left">
           <div className="sc-top">
             <button
               className="sc-play"
@@ -69,42 +69,40 @@ export function SongDetail({
               duration={active.durationSec}
             />
           )}
-
-          {head.description && <p className="song-desc">{head.description}</p>}
         </div>
 
-        <div className="sc-right">
-          <div className="sc-cover">
-            <CoverArt src={head.artUrl} alt={head.title} />
+        <div className="sc-cover">
+          <CoverArt src={head.artUrl} alt={head.title} />
+        </div>
+
+        {head.description && <p className="song-desc">{head.description}</p>}
+
+        {group.versions.length > 1 && (
+          <div className="song-versions">
+            <div className="setting-label">Versions</div>
+            {group.versions.map((v, i) => (
+              <button
+                key={v.hashId}
+                className={`version-row${v.hashId === player.currentHash ? " current" : ""}`}
+                onClick={() => player.playHash(v.hashId)}
+              >
+                <span className="v-play">
+                  {v.hashId === player.currentHash && player.playing
+                    ? "⏸"
+                    : "▶"}
+                </span>
+                <span className="v-num">
+                  v{v.version}
+                  {i === 0 && <em className="v-latest">latest</em>}
+                </span>
+                <span className="v-date">{fmtDate(v.releasedAt)}</span>
+                <span className="v-dur">
+                  {v.durationSec != null ? fmt(v.durationSec) : ""}
+                </span>
+              </button>
+            ))}
           </div>
-
-          {group.versions.length > 1 && (
-            <div className="song-versions">
-              <div className="setting-label">Versions</div>
-              {group.versions.map((v, i) => (
-                <button
-                  key={v.hashId}
-                  className={`version-row${v.hashId === player.currentHash ? " current" : ""}`}
-                  onClick={() => player.playHash(v.hashId)}
-                >
-                  <span className="v-play">
-                    {v.hashId === player.currentHash && player.playing
-                      ? "⏸"
-                      : "▶"}
-                  </span>
-                  <span className="v-num">
-                    v{v.version}
-                    {i === 0 && <em className="v-latest">latest</em>}
-                  </span>
-                  <span className="v-date">{fmtDate(v.releasedAt)}</span>
-                  <span className="v-dur">
-                    {v.durationSec != null ? fmt(v.durationSec) : ""}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

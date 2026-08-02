@@ -73,8 +73,6 @@ body::after {
   margin: 0 -24px;
   height: 260px;
   background: linear-gradient(135deg, #2a2a2a, #141414);
-  background-size: cover;
-  background-position: center 12%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -259,21 +257,12 @@ body::after {
 }
 
 .thumb {
+  position: relative;
   aspect-ratio: 4 / 3;
-  background: #141414 center/cover no-repeat;
+  background: #141414;
   display: block;
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
-}
-
-.thumb.empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-}
-
-.thumb.empty svg {
-  opacity: 0.45;
 }
 
 .body {
@@ -1180,17 +1169,27 @@ input[type="range"]::-moz-range-thumb {
 
 /* ============ SoundCloud-style song hero ============ */
 .sc-layout {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  column-gap: 24px;
+  row-gap: 22px;
 }
-.sc-left {
-  flex: 1;
+.sc-hero-left {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
-.sc-right {
-  width: 260px;
-  flex-shrink: 0;
+.sc-layout > .song-desc {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+}
+.sc-layout > .song-versions {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
 }
 .sc-top {
   display: flex;
@@ -1253,6 +1252,8 @@ input[type="range"]::-moz-range-thumb {
   padding: 2px 9px;
 }
 .sc-cover {
+  grid-column: 2;
+  grid-row: 1;
   position: relative;
   width: 100%;
   aspect-ratio: 1;
@@ -1261,13 +1262,21 @@ input[type="range"]::-moz-range-thumb {
   background: #141414;
 }
 
-/* Waveform scrubber */
+/* Waveform scrubber — fills the hero height (matches the cover). */
+.sc-hero-left .wave-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-top: 16px;
+}
 .wave-wrap {
   margin-top: 20px;
 }
 .wave {
   position: relative;
-  height: 92px;
+  flex: 1;
+  min-height: 100px;
   cursor: pointer;
 }
 .wave-base,
@@ -1297,20 +1306,27 @@ input[type="range"]::-moz-range-thumb {
 .wave-times {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+.wave-times span {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 .wave-times .cur {
   color: var(--accent);
 }
 @media (max-width: 640px) {
   .sc-layout {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
-  .sc-right {
-    width: 100%;
+  .sc-layout > * {
+    grid-column: 1 !important;
+    grid-row: auto !important;
   }
   .sc-cover {
     max-width: 320px;

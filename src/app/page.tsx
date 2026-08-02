@@ -1,7 +1,7 @@
 import { siNextdotjs, siVercel, siNeon, siDiscord } from "simple-icons";
 import { listItems } from "@/lib/db";
 import { TopActions } from "./TopActions";
-import { PawMark } from "./paw";
+import { CoverArt } from "./CoverArt";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +25,8 @@ export default async function Home() {
       <div className="hline" />
 
       {/* Banner image lives at public/banner.jpg */}
-      <header
-        className="banner"
-        style={{ backgroundImage: "url('/banner.jpg')" }}
-      >
+      <header className="banner">
+        <CoverArt src="/banner.jpg" alt="" objectPosition="center 12%" phSize="64px" />
         <div className="banner-inner">
           <div className="banner-title">
             <span className="eyebrow">{OWNER_HANDLE}</span>
@@ -58,29 +56,19 @@ export default async function Home() {
                 key={item.id}
                 className={`card${received ? " received" : ""}`}
               >
-                {item.image_url ? (
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="thumb"
-                    style={{
-                      backgroundImage: `url("${item.image_url}")`,
-                      backgroundPosition: `${item.focal_x}% ${item.focal_y}%`,
-                    }}
-                    aria-label={item.title ?? "item"}
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="thumb"
+                  aria-label={item.title ?? "item"}
+                >
+                  <CoverArt
+                    src={item.image_url}
+                    alt=""
+                    objectPosition={`${item.focal_x}% ${item.focal_y}%`}
                   />
-                ) : (
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="thumb empty"
-                    aria-label={item.title ?? "item"}
-                  >
-                    <PawIcon />
-                  </a>
-                )}
+                </a>
 
                 <div className="body">
                   <a
@@ -138,7 +126,6 @@ export default async function Home() {
   );
 }
 
-const PawIcon = () => <PawMark size={60} />;
 
 /* ---- Official brand marks (simple-icons), icon-only + linked ---- */
 function BrandLink({
