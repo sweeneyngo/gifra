@@ -29,6 +29,18 @@ export default async function Games() {
 
       <GamesView games={games} />
 
+      <footer className="footer">
+        <div className="footer-row">
+          <span className="footer-label">Credits</span>
+          <span>
+            Banner art by{" "}
+            <a href="https://x.com/nomifuki" target="_blank" rel="noreferrer">
+              @nomifuki
+            </a>
+          </span>
+        </div>
+      </footer>
+
       <div className="hline" />
     </div>
   );
