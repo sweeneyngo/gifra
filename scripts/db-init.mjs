@@ -25,3 +25,25 @@ await sql`
 `;
 
 console.log("✅ items table ready.");
+
+// itch.io games surface: personal `score` and play `status` are set by the
+// owner (via the import file); `dev_status`, `platforms`, and `updated_at` are
+// scraped from the page.
+await sql`
+  create table if not exists games (
+    id          uuid primary key default gen_random_uuid(),
+    url         text not null unique,
+    title       text,
+    image_url   text,
+    score       real,
+    status      text,
+    dev_status  text,
+    platforms   text,
+    updated_at  timestamptz,
+    created_at  timestamptz not null default now(),
+    focal_x     real not null default 50,
+    focal_y     real not null default 50
+  )
+`;
+
+console.log("✅ games table ready.");

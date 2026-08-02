@@ -80,6 +80,33 @@ vercel
 Add the same env vars in the Vercel dashboard, set the Interactions Endpoint URL
 to your deployed `/api/discord`, and you're done.
 
+## Games (itch.io)
+
+A second surface at `/games` tracks itch.io games. itch pages are clean Open
+Graph sites, so enrichment pulls the cover art for free; a small itch-only
+parser in [`src/lib/enrich.ts`](src/lib/enrich.ts) adds the **dev status**
+(Released / In development), **platforms** (from the download-button icons), and
+the **last-updated** timestamp. Your **personal score** is yours to set — it
+comes from the import file, never scraped.
+
+Import a batch from a JSON or CSV list of the games you own:
+
+```jsonc
+// games.json
+[
+  { "url": "https://dev.itch.io/some-game", "score": 8.5 },
+  { "url": "https://dev.itch.io/another",   "score": 7 }
+]
+```
+
+```bash
+# CSV works too: one "url,score" per line
+node --env-file=.env.local --experimental-strip-types scripts/games-import.ts games.json
+```
+
+Each row is enriched live and upserted by URL, so re-running refreshes the
+scraped fields (status/platforms/updated) while keeping the score already saved.
+
 ## Adding more storefronts
 
 Enrichment is generic (Open Graph), so new stores work with zero code. To add a
