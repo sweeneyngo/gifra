@@ -1,4 +1,10 @@
-import { siNextdotjs, siVercel, siNeon, siDiscord } from "simple-icons";
+import {
+  siNextdotjs,
+  siVercel,
+  siNeon,
+  siCloudflare,
+  siDiscord,
+} from "simple-icons";
 import { listItems } from "@/lib/db";
 import { TopActions } from "./TopActions";
 import { CoverArt } from "./CoverArt";
@@ -131,6 +137,11 @@ export default async function Home() {
             <BrandLink icon={siVercel} href="https://vercel.com" />
             <span className="plus">+</span>
             <BrandLink icon={siNeon} href="https://neon.tech" />
+            <span className="plus">+</span>
+            <BrandLink
+              icon={siCloudflare}
+              href="https://www.cloudflare.com/developer-platform/products/r2/"
+            />
             <span className="plus">+</span>
             <BrandLink icon={siDiscord} href="https://discord.com" />
           </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PawMark } from "./paw";
 
 /**
@@ -19,6 +19,15 @@ export function CoverArt({
   phSize?: number | string;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // If the image finished loading before React hydrated (cache/fast net),
+  // onLoad never fires — so reconcile against .complete on mount.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img?.complete && img.naturalWidth > 0) setLoaded(true);
+  }, [src]);
+
   return (
     <>
       <span className="cover-ph" hidden={!!src && loaded}>
@@ -27,6 +36,7 @@ export function CoverArt({
       {src && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           className="cover-img"
           src={src}
           alt={alt}
