@@ -14,7 +14,6 @@ export function Nav() {
     <nav className="nav">
       <Link href="/" className="nav-brand" aria-label="gifra home">
         <PawIcon />
-        <span>gifra</span>
       </Link>
       <div className="nav-tabs">
         {TABS.map((t) => {
@@ -36,7 +35,7 @@ export function Nav() {
 }
 
 const PawIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <ellipse cx="5.4" cy="11.9" rx="1.9" ry="2.5" />
     <ellipse cx="9.4" cy="7" rx="2" ry="2.7" />
     <ellipse cx="14.6" cy="7" rx="2" ry="2.7" />

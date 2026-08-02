@@ -1,0 +1,28 @@
+/* ============================================================
+   gifra color scheme
+   Dark base + accents derived pywal-style from public/banner.jpg
+   (see scripts/extract-palette.mjs). Banner reads as teal pool-glow
+   with warm string-light amber — so: teal primary, warm secondary.
+   ============================================================ */
+:root {
+  /* Base (dark) */
+  --bg: #191919;
+  --panel: #202020;
+  --card: #202020;
+  --card-hover: #2a2a2a;
+  --border: rgba(255, 255, 255, 0.094);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: rgba(255, 255, 255, 0.81);
+  --text-strong: #ffffff;
+  --muted: rgba(255, 255, 255, 0.44);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  /* Structural lines / dots (kept neutral) */
+  --dot: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-v: rgba(255, 255, 255, 0.15);
+
+  /* Accents — from banner.jpg */
+  --accent: #63c8cc; /* teal — banner's dominant vibrant hue (pool glow) */
+  --accent-2: #d49b73; /* warm — banner string-light amber */
+}
