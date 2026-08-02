@@ -42,6 +42,22 @@ export function groupSongs(songs: Song[]): Group[] {
     });
 }
 
+/** URL-safe slug from a title; empty (e.g. all non-latin) → falls back upstream. */
+export function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+/** The permalink slug for a song group (pretty title, else the group hash). */
+export function songSlug(g: Group): string {
+  return slugify(g.latest.title) || g.key;
+}
+
 export function fmt(sec: number): string {
   if (!isFinite(sec) || sec < 0) return "0:00";
   const m = Math.floor(sec / 60);

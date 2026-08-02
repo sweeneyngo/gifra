@@ -14,6 +14,7 @@ import {
 } from "react";
 import type { Song } from "@/lib/music";
 import { groupSongs, fmt } from "@/app/music/lib";
+import { CoverArt } from "@/app/CoverArt";
 
 type Repeat = "off" | "all" | "one";
 
@@ -287,6 +288,78 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     g.gain.setTargetAtTime(normFactor(currentHash), ctx.currentTime, 0.08);
   }, [normalize, currentHash]);
 
+  // --- Media Session (OS / lock-screen / headphone controls) ---
+  const transportRef = useRef({
+    togglePlay,
+    prev,
+    next,
+    seekTo: (_t: number) => {},
+  });
+  transportRef.current = {
+    togglePlay,
+    prev,
+    next,
+    seekTo: (t: number) => {
+      const a = activeEl();
+      if (a) {
+        a.currentTime = t;
+        setTime(t);
+      }
+    },
+  };
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
+    const ms = navigator.mediaSession;
+    ms.setActionHandler("play", () => transportRef.current.togglePlay());
+    ms.setActionHandler("pause", () => transportRef.current.togglePlay());
+    ms.setActionHandler("previoustrack", () => transportRef.current.prev());
+    ms.setActionHandler("nexttrack", () => transportRef.current.next());
+    try {
+      ms.setActionHandler("seekto", (d) => {
+        if (d.seekTime != null) transportRef.current.seekTo(d.seekTime);
+      });
+    } catch {
+      /* seekto unsupported */
+    }
+    return () => {
+      for (const a of [
+        "play",
+        "pause",
+        "previoustrack",
+        "nexttrack",
+        "seekto",
+      ] as const) {
+        try {
+          ms.setActionHandler(a, null);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, []);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
+    if (!current) {
+      navigator.mediaSession.metadata = null;
+      return;
+    }
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: current.title,
+      artist: current.singers.join(", "),
+      album: "gifra",
+      artwork: current.artUrl
+        ? [{ src: current.artUrl, sizes: "512x512", type: "image/png" }]
+        : [],
+    });
+  }, [current]);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
+    navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+  }, [playing]);
+
   const ctxValue = useMemo<PlayerCtx>(
     () => ({ currentHash, playing, hydrate, playHash }),
     [currentHash, playing, hydrate, playHash],
@@ -329,10 +402,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         {current && (
           <>
             <div className="np-track">
-              {current.artUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={current.artUrl} alt="" className="np-art" />
-              )}
+              <span className="np-art">
+                <CoverArt src={current.artUrl} alt="" />
+              </span>
               <div className="np-meta">
                 <div className="np-title">
                   {current.title}

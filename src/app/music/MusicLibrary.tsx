@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Song } from "@/lib/music";
 import { usePlayer } from "@/app/player/PlayerProvider";
-import { groupSongs, fmt, fmtDate } from "./lib";
+import { CoverArt } from "@/app/CoverArt";
+import { groupSongs, fmt, fmtDate, songSlug } from "./lib";
 
 export function MusicLibrary({ songs }: { songs: Song[] }) {
   const player = usePlayer();
@@ -114,12 +116,7 @@ export function MusicLibrary({ songs }: { songs: Song[] }) {
                 }}
               >
                 <span className="track-art">
-                  {s.artUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.artUrl} alt="" loading="lazy" />
-                  ) : (
-                    <span className="track-art empty">♪</span>
-                  )}
+                  <CoverArt src={s.artUrl} alt="" />
                   <span className="track-play">
                     {isCurrent && player.playing ? <PauseIcon /> : <PlayIcon />}
                   </span>
@@ -187,6 +184,9 @@ export function MusicLibrary({ songs }: { songs: Song[] }) {
                       ))}
                     </div>
                   )}
+                  <Link href={`/music/${songSlug(g)}`} className="song-permalink">
+                    Open song page ↗
+                  </Link>
                 </div>
               )}
             </div>

@@ -16,6 +16,7 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.gifra.me"),
   title: "My Wishlist",
   description: "A running wishlist of things I'm after.",
 };

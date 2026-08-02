@@ -120,3 +120,16 @@ export async function getAudioKey(hashId: string): Promise<string | null> {
   `) as { url: string }[];
   return rows[0]?.url ?? null;
 }
+
+/** R2 object key for a song's cover art (for a stable, always-fresh art URL). */
+export async function getArtKey(hashId: string): Promise<string | null> {
+  const rows = (await sql`
+    select m.url
+    from music.media_sources m
+    where m.song_hash_id = ${hashId} and m.file_type = 'art'
+      and m.deleted_at is null
+    order by m.created_at desc
+    limit 1
+  `) as { url: string }[];
+  return rows[0]?.url ?? null;
+}
