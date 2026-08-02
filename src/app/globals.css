@@ -374,11 +374,16 @@ body::after {
   font-size: 11px;
 }
 
-/* Supported-platform pills. */
+/* Supported-platform icons (text pill is a fallback for unmapped platforms). */
 .game-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  align-items: center;
+  gap: 7px;
+}
+.plat {
+  display: inline-flex;
+  color: var(--muted);
 }
 .pill {
   font-size: 11px;

@@ -1,7 +1,22 @@
+import { siApple, siLinux, siAndroid, siHtml5 } from "simple-icons";
 import { listGames } from "@/lib/db";
 import { CoverArt } from "../CoverArt";
 
 export const dynamic = "force-dynamic";
+
+// simple-icons dropped the Windows mark (trademark); its logo is plain geometry,
+// so inline the four-pane path in the same 24x24 solid-fill style.
+const WINDOWS_PATH =
+  "M0 3.449 9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699m10.949-8.099H24V24l-12.9-1.801";
+
+// Supported-platform string -> icon. Unknown platforms fall back to a text pill.
+const PLATFORM_ICON: Record<string, { path: string; title: string }> = {
+  Windows: { path: WINDOWS_PATH, title: "Windows" },
+  macOS: { path: siApple.path, title: "macOS" },
+  Linux: { path: siLinux.path, title: "Linux" },
+  Android: { path: siAndroid.path, title: "Android" },
+  Web: { path: siHtml5.path, title: "Web (browser)" },
+};
 
 const PAGE_TITLE = "My Games";
 const OWNER_HANDLE = "ifuxyl";
@@ -93,11 +108,31 @@ export default async function Games() {
 
                   {platforms.length > 0 && (
                     <div className="game-tags">
-                      {platforms.map((p) => (
-                        <span key={p} className="pill">
-                          {p}
-                        </span>
-                      ))}
+                      {platforms.map((p) => {
+                        const icon = PLATFORM_ICON[p];
+                        return icon ? (
+                          <span
+                            key={p}
+                            className="plat"
+                            title={icon.title}
+                            aria-label={icon.title}
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              aria-hidden
+                            >
+                              <path d={icon.path} />
+                            </svg>
+                          </span>
+                        ) : (
+                          <span key={p} className="pill">
+                            {p}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
 
