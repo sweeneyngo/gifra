@@ -88,6 +88,38 @@ function meta(root: ReturnType<typeof parse>, ...keys: string[]): string | null 
 
 type El = ReturnType<typeof parse>;
 
+// Shopify sets og:image to a video's frame-0 thumbnail (usually black).
+const isVideoThumb = (u: string) => /preview_images|thumbnail\.\d{6,}/i.test(u);
+
+/**
+ * Shopify product pages hydrate their images client-side, but expose them at
+ * `/products/<handle>.json`. Use the first real image when the page's image is
+ * missing or a video thumbnail.
+ */
+async function shopifyImage(pageUrl: string): Promise<string | null> {
+  try {
+    const u = new URL(pageUrl);
+    const m = u.pathname.match(/\/products\/[^/?#]+/);
+    if (!m) return null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(`${u.origin}${m[0]}.json`, {
+      headers: { "User-Agent": UA, Accept: "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      product?: { images?: { src?: string }[]; image?: { src?: string } };
+    };
+    const imgs = data.product?.images;
+    if (Array.isArray(imgs) && imgs[0]?.src) return imgs[0].src;
+    return data.product?.image?.src ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Pull the first usable image URL out of any JSON-LD blocks on the page. */
 function jsonLdImage(root: El): string | null {
   for (const s of root.querySelectorAll('script[type="application/ld+json"]')) {
@@ -206,6 +238,12 @@ export async function enrich(url: string): Promise<Enriched> {
       root.querySelector('meta[itemprop="image"]')?.getAttribute("content") ??
       jsonLdImage(root) ??
       scanForProductImage(root, url);
+
+    // Shopify: og:image is often a black video thumbnail — grab the real image.
+    if (!image || isVideoThumb(image)) {
+      const shop = await shopifyImage(url);
+      if (shop) image = shop;
+    }
 
     // Resolve protocol-relative or relative image URLs against the page.
     if (image) {

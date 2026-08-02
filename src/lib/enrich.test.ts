@@ -63,6 +63,32 @@ describe("enrich", () => {
     expect(r.image_url).toBe("https://store.example.com/media/cover.png");
   });
 
+  it("falls back to Shopify product JSON when og:image is a video thumbnail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (u: string) => {
+        if (u.endsWith(".json"))
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              product: { images: [{ src: "https://cdn.shopify.com/real.jpg" }] },
+            }),
+          };
+        if (u.includes("/products/"))
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              `<html><head><meta property="og:image" content="https://x/preview_images/a.thumbnail.0000000000.jpg" /></head></html>`,
+          };
+        return { ok: false, status: 404 };
+      }),
+    );
+    const r = await enrich("https://store.example.com/products/divergence");
+    expect(r.image_url).toBe("https://cdn.shopify.com/real.jpg");
+  });
+
   it("degrades gracefully on a non-ok response", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500 })));
     const r = await enrich("https://store.example.com/page");
