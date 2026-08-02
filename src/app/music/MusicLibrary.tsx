@@ -46,8 +46,9 @@ export function MusicLibrary({ songs }: { songs: Song[] }) {
 
   return (
     <div className="wrap music">
+      <div className="hline" />
       <div className="music-head">
-        <h1>Music</h1>
+        <h1>Music Library</h1>
         <p className="music-desc">
           A collection of all my music &amp; covers over the years.
         </p>
