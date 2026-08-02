@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { listGames } from "@/lib/db";
+import { isAdmin } from "@/lib/auth";
 import { CoverArt } from "../CoverArt";
 import { GamesView } from "./GamesView";
 import { FvnAbout } from "./FvnAbout";
@@ -11,7 +12,7 @@ const PAGE_TITLE = "FVNs";
 const OWNER_HANDLE = "ifuxyl";
 
 export default async function Games() {
-  const games = await listGames();
+  const [games, admin] = await Promise.all([listGames(), isAdmin()]);
 
   return (
     <div className="wrap">
@@ -31,7 +32,7 @@ export default async function Games() {
 
       <div className="hline" />
 
-      <GamesView games={games} />
+      <GamesView games={games} admin={admin} />
 
       <footer className="footer">
         <div className="footer-row">

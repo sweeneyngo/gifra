@@ -397,6 +397,154 @@ body::after {
   height: auto;
 }
 
+/* ---------- Admin editing ---------- */
+.page-head {
+  padding: 22px 0 20px;
+}
+.page-head .eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.page-head h1 {
+  margin: 4px 0 0;
+  font-size: 26px;
+  color: var(--text-strong);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #191919;
+  font-weight: 600;
+}
+.btn.primary:hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+.btn.danger {
+  color: #e08a8a;
+  border-color: rgba(224, 138, 138, 0.4);
+}
+.btn.danger:hover {
+  background: rgba(224, 138, 138, 0.12);
+  border-color: rgba(224, 138, 138, 0.6);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Toolbar cluster: admin actions + the view toggle. */
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Per-card / per-row edit pencil (admin only). */
+.edit-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.edit-btn:hover {
+  color: var(--text-strong);
+  background: var(--card-hover);
+}
+.name-row .edit-btn {
+  margin-left: auto;
+}
+/* The list link lays out as flex items of .game-row so the pencil sits beside. */
+.game-row-link {
+  display: contents;
+}
+
+/* Sign-in form. */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 280px;
+  margin: 8px 0 24px;
+}
+.login-form label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.login-form input,
+.editor-field input,
+.editor-field select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-strong);
+}
+.login-form .btn {
+  align-self: flex-start;
+}
+.login-error {
+  color: #e08a8a;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Game editor modal body. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.editor-field span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.editor-row {
+  display: flex;
+  gap: 12px;
+}
+.editor-url {
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+}
+.editor-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.editor-actions .btn.danger {
+  margin-left: auto;
+}
+
 /* Supported-platform icons (text pill is a fallback for unmapped platforms). */
 .game-tags {
   display: flex;

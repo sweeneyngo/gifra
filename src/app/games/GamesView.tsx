@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import type { Game } from "@/lib/db";
 import { CoverArt } from "../CoverArt";
+import { logout } from "../admin/actions";
+import { GameEditor } from "./GameEditor";
 import {
   scoreColor,
   STATUS_LABEL,
@@ -14,6 +16,23 @@ import {
   GemIcon,
   OverIcon,
 } from "./marks";
+
+type EditTarget = Game | "new";
+
+const EditIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+);
+
+function EditButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="edit-btn" onClick={onClick} aria-label="Edit" title="Edit">
+      <EditIcon />
+    </button>
+  );
+}
 
 // "Jul 30, 2026" — compact, since it sits inside a card meta row.
 const dateFmt = new Intl.DateTimeFormat("en-US", {
@@ -45,7 +64,15 @@ function NameMarks({ game }: { game: Game }) {
   );
 }
 
-function GridCard({ game }: { game: Game }) {
+function GridCard({
+  game,
+  admin,
+  onEdit,
+}: {
+  game: Game;
+  admin: boolean;
+  onEdit: (t: EditTarget) => void;
+}) {
   return (
     <div className="card">
       <a
@@ -75,6 +102,7 @@ function GridCard({ game }: { game: Game }) {
             {game.title ?? game.url}
           </a>
           <NameMarks game={game} />
+          {admin && <EditButton onClick={() => onEdit(game)} />}
         </div>
 
         <PlatformIcons platforms={parsePlatforms(game.platforms)} />
@@ -102,9 +130,19 @@ function GridCard({ game }: { game: Game }) {
   );
 }
 
-function ListRow({ game }: { game: Game }) {
-  return (
-    <a href={game.url} target="_blank" rel="noreferrer" className="game-row">
+function ListRow({
+  game,
+  admin,
+  onEdit,
+}: {
+  game: Game;
+  admin: boolean;
+  onEdit: (t: EditTarget) => void;
+}) {
+  // The link uses display:contents so its children lay out as flex items of the
+  // row; the edit button then sits alongside them without nesting in an anchor.
+  const content = (
+    <a href={game.url} target="_blank" rel="noreferrer" className="game-row-link">
       <span className="row-thumb">
         <CoverArt
           src={game.image_url}
@@ -132,14 +170,22 @@ function ListRow({ game }: { game: Game }) {
       )}
     </a>
   );
+
+  return (
+    <div className="game-row">
+      {content}
+      {admin && <EditButton onClick={() => onEdit(game)} />}
+    </div>
+  );
 }
 
 type View = "grid" | "list";
 const VIEW_KEY = "gifra:games-view";
 
-export function GamesView({ games }: { games: Game[] }) {
+export function GamesView({ games, admin }: { games: Game[]; admin: boolean }) {
   // Start on "grid" for a stable first render, then adopt the saved choice.
   const [view, setView] = useState<View>("grid");
+  const [editing, setEditing] = useState<EditTarget | null>(null);
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY);
     if (saved === "grid" || saved === "list") setView(saved);
@@ -158,27 +204,45 @@ export function GamesView({ games }: { games: Game[] }) {
           {games.length} game{games.length === 1 ? "" : "s"}
           {rated > 0 && ` · ${rated} rated`}
         </span>
-        <div className="view-toggle" role="group" aria-label="View">
-          <button
-            type="button"
-            className={`view-btn${view === "grid" ? " active" : ""}`}
-            onClick={() => choose("grid")}
-            aria-pressed={view === "grid"}
-            aria-label="Grid view"
-            title="Grid view"
-          >
-            <GridIcon />
-          </button>
-          <button
-            type="button"
-            className={`view-btn${view === "list" ? " active" : ""}`}
-            onClick={() => choose("list")}
-            aria-pressed={view === "list"}
-            aria-label="List view"
-            title="List view"
-          >
-            <ListIcon />
-          </button>
+        <div className="toolbar-actions">
+          {admin && (
+            <>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => setEditing("new")}
+              >
+                + Add game
+              </button>
+              <form action={logout}>
+                <button type="submit" className="btn">
+                  Log out
+                </button>
+              </form>
+            </>
+          )}
+          <div className="view-toggle" role="group" aria-label="View">
+            <button
+              type="button"
+              className={`view-btn${view === "grid" ? " active" : ""}`}
+              onClick={() => choose("grid")}
+              aria-pressed={view === "grid"}
+              aria-label="Grid view"
+              title="Grid view"
+            >
+              <GridIcon />
+            </button>
+            <button
+              type="button"
+              className={`view-btn${view === "list" ? " active" : ""}`}
+              onClick={() => choose("list")}
+              aria-pressed={view === "list"}
+              aria-label="List view"
+              title="List view"
+            >
+              <ListIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -187,15 +251,19 @@ export function GamesView({ games }: { games: Game[] }) {
       ) : view === "grid" ? (
         <div className="grid">
           {games.map((game) => (
-            <GridCard key={game.id} game={game} />
+            <GridCard key={game.id} game={game} admin={admin} onEdit={setEditing} />
           ))}
         </div>
       ) : (
         <div className="game-list">
           {games.map((game) => (
-            <ListRow key={game.id} game={game} />
+            <ListRow key={game.id} game={game} admin={admin} onEdit={setEditing} />
           ))}
         </div>
+      )}
+
+      {editing && (
+        <GameEditor game={editing} onClose={() => setEditing(null)} />
       )}
     </>
   );

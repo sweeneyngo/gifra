@@ -168,6 +168,50 @@ export async function upsertGame(fields: {
   return rows[0];
 }
 
+/** Update just the owner-set fields (admin edit), leaving scraped data intact. */
+export async function updateGameOwner(
+  id: string,
+  fields: { score: number | null; status: string | null; recommended: boolean },
+): Promise<void> {
+  await sql`
+    update games
+    set score = ${fields.score},
+        status = ${fields.status},
+        recommended = ${fields.recommended}
+    where id = ${id}
+  `;
+}
+
+/** Refresh just the scraped fields (admin re-enrich), leaving owner data intact. */
+export async function updateGameScraped(
+  id: string,
+  fields: {
+    title: string | null;
+    image_url: string | null;
+    platforms: string | null;
+    dev_status: string | null;
+    updated_at: string | null;
+    rating_value: number | null;
+    rating_count: number | null;
+    focal_x: number;
+    focal_y: number;
+  },
+): Promise<void> {
+  await sql`
+    update games
+    set title = ${fields.title}, image_url = ${fields.image_url},
+        platforms = ${fields.platforms}, dev_status = ${fields.dev_status},
+        updated_at = ${fields.updated_at}, rating_value = ${fields.rating_value},
+        rating_count = ${fields.rating_count},
+        focal_x = ${fields.focal_x}, focal_y = ${fields.focal_y}
+    where id = ${id}
+  `;
+}
+
+export async function deleteGame(id: string): Promise<void> {
+  await sql`delete from games where id = ${id}`;
+}
+
 /** Fuzzy-find items by title / store / url for the owner manage commands. */
 export async function findItemsByQuery(
   query: string,
