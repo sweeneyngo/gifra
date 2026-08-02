@@ -457,11 +457,10 @@ body::after {
   padding-bottom: 84px;
 }
 .music {
-  padding-top: 22px;
   padding-bottom: 48px;
 }
 .music-head {
-  padding: 8px 0 20px;
+  padding: 28px 0 20px;
 }
 .music-head h1 {
   margin: 0;
