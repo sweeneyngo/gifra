@@ -457,6 +457,7 @@ body::after {
   padding-bottom: 84px;
 }
 .music {
+  padding-top: 22px;
   padding-bottom: 48px;
 }
 .music-head {
@@ -958,6 +959,11 @@ body::after {
   accent-color: var(--accent);
   cursor: pointer;
   flex-shrink: 0;
+}
+.cf-slider {
+  width: 100%;
+  margin: 0 0 10px;
+  accent-color: var(--accent);
 }
 .setting-label {
   font-size: 11px;

@@ -9,6 +9,8 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
+  type SyntheticEvent,
 } from "react";
 import type { Song } from "@/lib/music";
 import { groupSongs, fmt } from "@/app/music/lib";
@@ -29,13 +31,21 @@ export const usePlayer = () => {
   return c;
 };
 
+const streamUrl = (hash: string) => `/api/music/songs/${hash}/stream`;
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  // Two audio elements (A/B) so tracks can overlap for crossfade.
+  const elA = useRef<HTMLAudioElement>(null);
+  const elB = useRef<HTMLAudioElement>(null);
+  const active = useRef(0); // index of the element that "is" currentHash
+  const crossfading = useRef(false);
+
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
+  const gainA = useRef<GainNode | null>(null);
+  const gainB = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+
   const [songs, setSongs] = useState<Song[]>([]);
-  const [normalize, setNormalize] = useState(false);
   const [currentHash, setCurrentHash] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -44,6 +54,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [speed, setSpeed] = useState(1);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<Repeat>("off");
+  const [normalize, setNormalize] = useState(false);
+  const [crossfade, setCrossfade] = useState(false);
+  const [crossfadeSec, setCrossfadeSec] = useState(6);
   const [showDesc, setShowDesc] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -61,6 +74,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const groups = useMemo(() => groupSongs(songs), [songs]);
   const order = useMemo(() => groups.map((g) => g.latest.hashId), [groups]);
 
+  const el = (i: number) => (i === 0 ? elA.current : elB.current);
+  const gain = (i: number) => (i === 0 ? gainA.current : gainB.current);
+  const activeEl = () => el(active.current);
+
   const groupOf = (hash: string) =>
     groups.find((g) => g.versions.some((v) => v.hashId === hash));
   const anchorIndex = () => {
@@ -74,37 +91,106 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     while (j === exclude) j = Math.floor(Math.random() * order.length);
     return order[j];
   };
+  const normFactor = (hash: string | null) => {
+    const lufs = hash ? (byHash.get(hash)?.lufs ?? null) : null;
+    return normalize && lufs != null ? Math.pow(10, (-14 - lufs) / 20) : 1;
+  };
 
-  const hydrate = useCallback((s: Song[]) => {
-    setSongs((prev) => (prev.length === 0 && s.length ? s : prev));
-  }, []);
-  // Lazily build the Web Audio graph on first play (needs a user gesture):
-  //   <audio> → gain (normalize) → analyser (meter) → speakers.
-  // If it fails (e.g. CORS), the element keeps playing directly.
+  // Build the graph on first play: each element → gain → analyser → speakers.
   const ensureGraph = useCallback(() => {
-    if (audioCtxRef.current || !audioRef.current) return;
+    if (audioCtxRef.current || !elA.current || !elB.current) return;
     try {
       const AC =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext;
       const ctx = new AC();
-      const src = ctx.createMediaElementSource(audioRef.current);
-      const gain = ctx.createGain();
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
-      src.connect(gain);
-      gain.connect(analyser);
       analyser.connect(ctx.destination);
+      const mk = (media: HTMLAudioElement) => {
+        const src = ctx.createMediaElementSource(media);
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        src.connect(g);
+        g.connect(analyser);
+        return g;
+      };
+      gainA.current = mk(elA.current);
+      gainB.current = mk(elB.current);
       audioCtxRef.current = ctx;
-      gainRef.current = gain;
       analyserRef.current = analyser;
     } catch {
-      /* graph unavailable — direct playback still works */
+      /* graph unavailable — fall back to direct element playback */
     }
   }, []);
+
+  // Core transition. cross=true fades from the active element to the other.
+  const startTrack = useCallback(
+    (hash: string, cross: boolean) => {
+      ensureGraph();
+      const ctx = audioCtxRef.current;
+      ctx?.resume();
+      const norm = normFactor(hash);
+
+      if (!cross || !currentHash || !ctx) {
+        // Hard switch on the active element; silence/stop the other.
+        const i = active.current;
+        const e = el(i);
+        const other = el(1 - i);
+        const og = gain(1 - i);
+        if (other) other.pause();
+        if (og && ctx) og.gain.setValueAtTime(0, ctx.currentTime);
+        if (e) {
+          e.loop = repeat === "one";
+          e.src = streamUrl(hash);
+          e.currentTime = 0;
+          e.play().catch(() => setPlaying(false));
+        }
+        const g = gain(i);
+        if (g && ctx) g.gain.setValueAtTime(norm, ctx.currentTime);
+        setCurrentHash(hash);
+        return;
+      }
+
+      // Crossfade: play the incoming track on the inactive element, ramp gains.
+      const outIdx = active.current;
+      const inIdx = 1 - outIdx;
+      const oe = el(outIdx);
+      const ie = el(inIdx);
+      const og = gain(outIdx);
+      const ig = gain(inIdx);
+      if (!ie || !ig || !og) return;
+      crossfading.current = true;
+      const t = ctx.currentTime;
+      const cf = Math.max(0.1, crossfadeSec);
+
+      ie.loop = false;
+      ie.src = streamUrl(hash);
+      ie.currentTime = 0;
+      ie.play().catch(() => {});
+      og.gain.cancelScheduledValues(t);
+      og.gain.setValueAtTime(og.gain.value, t);
+      og.gain.linearRampToValueAtTime(0, t + cf);
+      ig.gain.cancelScheduledValues(t);
+      ig.gain.setValueAtTime(0, t);
+      ig.gain.linearRampToValueAtTime(norm, t + cf);
+
+      active.current = inIdx;
+      setCurrentHash(hash);
+      window.setTimeout(() => {
+        if (oe) oe.pause();
+        crossfading.current = false;
+      }, cf * 1000);
+    },
+    [ensureGraph, currentHash, crossfadeSec, repeat, normalize, byHash],
+  );
+
+  const hydrate = useCallback((s: Song[]) => {
+    setSongs((prev) => (prev.length === 0 && s.length ? s : prev));
+  }, []);
   const togglePlay = useCallback(() => {
-    const a = audioRef.current;
+    const a = activeEl();
     if (!a) return;
     ensureGraph();
     audioCtxRef.current?.resume();
@@ -113,92 +199,125 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [ensureGraph]);
   const playHash = useCallback(
     (h: string) => {
-      ensureGraph();
-      audioCtxRef.current?.resume();
-      if (h === currentHash) togglePlay();
-      else setCurrentHash(h);
+      if (h === currentHash) {
+        togglePlay();
+        return;
+      }
+      startTrack(h, crossfade && playing);
     },
-    [currentHash, togglePlay, ensureGraph],
+    [currentHash, crossfade, playing, startTrack, togglePlay],
   );
 
-  // Stable context value: only changes when currentHash/playing change, NOT on
-  // every timeupdate — so the library doesn't re-render during playback.
-  const ctxValue = useMemo<PlayerCtx>(
-    () => ({ currentHash, playing, hydrate, playHash }),
-    [currentHash, playing, hydrate, playHash],
-  );
   function stop() {
-    const a = audioRef.current;
-    if (!a) return;
-    a.pause();
-    a.currentTime = 0;
+    if (elA.current) elA.current.pause();
+    if (elB.current) elB.current.pause();
+    const a = activeEl();
+    if (a) a.currentTime = 0;
     setTime(0);
     setPlaying(false);
   }
-  function next() {
-    if (order.length === 0) return;
+  // The next/prev/end target respecting shuffle + repeat.
+  function nextHash(auto: boolean): string | null {
     const i = anchorIndex();
-    setCurrentHash(shuffle ? randomHash(i) : order[(i + 1) % order.length]);
+    if (shuffle) return randomHash(i);
+    if (i + 1 < order.length) return order[i + 1];
+    if (repeat === "all") return order[0];
+    return auto ? null : order[0];
+  }
+  function next() {
+    const h = nextHash(false);
+    if (h) startTrack(h, crossfade && playing);
   }
   function prev() {
-    if (order.length === 0) return;
-    const a = audioRef.current;
+    const a = activeEl();
     if (a && a.currentTime > 3) {
-      a.currentTime = 0; // restart current, Spotify-style
+      a.currentTime = 0;
       return;
     }
     const i = anchorIndex();
-    setCurrentHash(
-      shuffle ? randomHash(i) : order[(i - 1 + order.length) % order.length],
-    );
+    const h = shuffle
+      ? randomHash(i)
+      : order[(i - 1 + order.length) % order.length];
+    if (h) startTrack(h, crossfade && playing);
   }
   function onEnded() {
-    // repeat "one" is handled by the audio element's loop flag.
-    const i = anchorIndex();
-    if (shuffle) {
-      setCurrentHash(randomHash(i));
-      return;
-    }
-    if (i + 1 < order.length) setCurrentHash(order[i + 1]);
-    else if (repeat === "all") setCurrentHash(order[0]);
+    // If crossfade preempted, this won't fire. Otherwise hard-advance.
+    const h = nextHash(true);
+    if (h) startTrack(h, false);
     else stop();
   }
   function cycleRepeat() {
     setRepeat((r) => (r === "off" ? "all" : r === "all" ? "one" : "off"));
   }
 
-  // Load + play whenever the track changes.
+  // Auto-crossfade when the active track nears its end.
+  function onProgress(e: HTMLAudioElement) {
+    if (
+      !crossfade ||
+      crossfading.current ||
+      repeat === "one" ||
+      !isFinite(e.duration)
+    )
+      return;
+    if (e.currentTime >= e.duration - crossfadeSec) {
+      const h = nextHash(true);
+      if (h) startTrack(h, true);
+    }
+  }
+
+  // Volume + speed apply to both elements; loop only to the active one.
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a || !currentHash) return;
-    ensureGraph();
-    audioCtxRef.current?.resume();
-    a.src = `/api/music/songs/${currentHash}/stream`;
-    a.play().catch(() => setPlaying(false));
-  }, [currentHash, ensureGraph]);
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = vol;
+    if (elA.current) elA.current.volume = vol;
+    if (elB.current) elB.current.volume = vol;
   }, [vol]);
   useEffect(() => {
-    if (audioRef.current) audioRef.current.playbackRate = speed;
+    if (elA.current) elA.current.playbackRate = speed;
+    if (elB.current) elB.current.playbackRate = speed;
   }, [speed, currentHash]);
   useEffect(() => {
-    if (audioRef.current) audioRef.current.loop = repeat === "one";
+    const a = activeEl();
+    if (a) a.loop = repeat === "one";
   }, [repeat, currentHash]);
 
-  // Loudness normalization: gain = 10^((target − trackLUFS)/20), target −14 LUFS.
+  // Loudness normalization on the active gain (when not mid-crossfade).
   useEffect(() => {
-    const g = gainRef.current;
+    const g = gain(active.current);
     const ctx = audioCtxRef.current;
-    if (!g || !ctx) return;
-    const lufs = current?.lufs ?? null;
-    const val =
-      normalize && lufs != null ? Math.pow(10, (-14 - lufs) / 20) : 1;
-    g.gain.setTargetAtTime(val, ctx.currentTime, 0.08);
-  }, [normalize, current]);
+    if (!g || !ctx || crossfading.current) return;
+    g.gain.setTargetAtTime(normFactor(currentHash), ctx.currentTime, 0.08);
+  }, [normalize, currentHash]);
+
+  const ctxValue = useMemo<PlayerCtx>(
+    () => ({ currentHash, playing, hydrate, playHash }),
+    [currentHash, playing, hydrate, playHash],
+  );
 
   const currentGroup = current ? groupOf(current.hashId) : null;
   const showVer = current && currentGroup && currentGroup.versions.length > 1;
+
+  // Shared handlers, gated to the active element.
+  const isActive = (e: HTMLAudioElement) => e === activeEl();
+  const audioProps = (self: RefObject<HTMLAudioElement | null>) => ({
+    ref: self,
+    crossOrigin: "anonymous" as const,
+    onTimeUpdate: (e: SyntheticEvent<HTMLAudioElement>) => {
+      const a = e.currentTarget;
+      if (isActive(a)) setTime(a.currentTime);
+      onProgress(a);
+    },
+    onLoadedMetadata: (e: SyntheticEvent<HTMLAudioElement>) => {
+      if (isActive(e.currentTarget)) setDur(e.currentTarget.duration);
+    },
+    onEnded: (e: SyntheticEvent<HTMLAudioElement>) => {
+      if (isActive(e.currentTarget)) onEnded();
+    },
+    onPlay: (e: SyntheticEvent<HTMLAudioElement>) => {
+      if (isActive(e.currentTarget)) setPlaying(true);
+    },
+    onPause: (e: SyntheticEvent<HTMLAudioElement>) => {
+      if (isActive(e.currentTarget)) setPlaying(false);
+    },
+  });
 
   return (
     <Ctx.Provider value={ctxValue}>
@@ -267,7 +386,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   step={0.1}
                   value={time}
                   onChange={(e) => {
-                    const a = audioRef.current;
+                    const a = activeEl();
                     const v = Number(e.target.value);
                     if (a) a.currentTime = v;
                     setTime(v);
@@ -302,7 +421,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               </button>
               <a
                 className="np-icon"
-                href={`/api/music/songs/${current.hashId}/stream?dl=1`}
+                href={`${streamUrl(current.hashId)}?dl=1`}
                 download
                 aria-label="Download"
               >
@@ -369,6 +488,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     onChange={(e) => setNormalize(e.target.checked)}
                   />
                 </label>
+                <label className="setting-toggle">
+                  <span>
+                    Crossfade
+                    <small>
+                      {crossfade ? `${crossfadeSec}s overlap` : "off"}
+                    </small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={crossfade}
+                    onChange={(e) => setCrossfade(e.target.checked)}
+                  />
+                </label>
+                {crossfade && (
+                  <input
+                    className="cf-slider"
+                    type="range"
+                    min={1}
+                    max={12}
+                    step={1}
+                    value={crossfadeSec}
+                    onChange={(e) => setCrossfadeSec(Number(e.target.value))}
+                  />
+                )}
                 <div className="setting-label">Playback speed</div>
                 <div className="speed-row">
                   {[0.5, 0.75, 1, 1.25, 1.5, 2].map((sp) => (
@@ -387,36 +530,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         )}
       </div>
 
-      <audio
-        ref={audioRef}
-        crossOrigin="anonymous"
-        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setDur(e.currentTarget.duration)}
-        onEnded={onEnded}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-      />
+      <audio {...audioProps(elA)} />
+      <audio {...audioProps(elB)} />
     </Ctx.Provider>
   );
 }
 
-function specRows(s: Song): [string, string][] {
-  const rows: [string, string][] = [];
-  if (s.audioFormat) rows.push(["Format", s.audioFormat.toUpperCase()]);
-  if (s.bitrate) rows.push(["Bitrate", `${s.bitrate} kbps`]);
-  if (s.sampleRate)
-    rows.push(["Sample rate", `${(s.sampleRate / 1000).toFixed(1)} kHz`]);
-  if (s.channels)
-    rows.push([
-      "Channels",
-      s.channels === 2 ? "Stereo" : s.channels === 1 ? "Mono" : `${s.channels}`,
-    ]);
-  if (s.durationSec != null) rows.push(["Duration", fmt(s.durationSec)]);
-  if (s.lufs != null) rows.push(["Loudness", `${s.lufs.toFixed(1)} LUFS`]);
-  return rows;
-}
-
-/** Live RMS level (dBFS) read from the analyser while playing. */
+/** Live RMS level (dBFS), integrated over 1s to keep the readout calm. */
 function LiveLevel({
   analyser,
   playing,
@@ -429,7 +549,6 @@ function LiveLevel({
     if (!analyser || !playing) return;
     const buf = new Float32Array(analyser.fftSize);
     let raf = 0;
-    // Integrate sum-of-squares across frames; emit the RMS once per second.
     let sumSq = 0;
     let count = 0;
     let last = performance.now();
@@ -456,6 +575,22 @@ function LiveLevel({
   if (!analyser) return <span>—</span>;
   if (db == null || !isFinite(db)) return <span>−∞ dB</span>;
   return <span>{db.toFixed(1)} dB</span>;
+}
+
+function specRows(s: Song): [string, string][] {
+  const rows: [string, string][] = [];
+  if (s.audioFormat) rows.push(["Format", s.audioFormat.toUpperCase()]);
+  if (s.bitrate) rows.push(["Bitrate", `${s.bitrate} kbps`]);
+  if (s.sampleRate)
+    rows.push(["Sample rate", `${(s.sampleRate / 1000).toFixed(1)} kHz`]);
+  if (s.channels)
+    rows.push([
+      "Channels",
+      s.channels === 2 ? "Stereo" : s.channels === 1 ? "Mono" : `${s.channels}`,
+    ]);
+  if (s.durationSec != null) rows.push(["Duration", fmt(s.durationSec)]);
+  if (s.lufs != null) rows.push(["Loudness", `${s.lufs.toFixed(1)} LUFS`]);
+  return rows;
 }
 
 /* ---- icons ---- */
