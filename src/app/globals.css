@@ -379,6 +379,74 @@ body::after {
   display: inline-flex;
   color: #9aa0ee;
 }
+.overrated-star {
+  flex: none;
+  display: inline-flex;
+  color: #d98787;
+}
+
+/* "What is this?" legend. */
+.legend {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.legend-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+.legend-key {
+  flex: none;
+  width: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.score-bar {
+  width: 22px;
+  height: 12px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    hsl(0, 65%, 48%),
+    hsl(60, 65%, 48%),
+    hsl(120, 65%, 48%)
+  );
+}
+.legend-label {
+  flex: none;
+  width: 68px;
+  color: var(--muted);
+}
+.legend-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+}
+.legend-plat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.legend-plat .plat {
+  color: var(--muted);
+}
 
 /* Supported-platform icons (text pill is a fallback for unmapped platforms). */
 .game-tags {
@@ -552,6 +620,10 @@ body::after {
   animation: pop 0.13s ease-out;
 }
 
+.modal {
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
 .modal h2 {
   margin: 0 0 12px;
   font-size: 18px;
