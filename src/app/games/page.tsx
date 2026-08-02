@@ -15,6 +15,12 @@ const STATUS_LABEL: Record<string, string> = {
   planned: "Plan to read",
 };
 
+// Map a 0–10 score onto a red→amber→green hue (0 = red, 10 = green).
+function scoreColor(score: number): string {
+  const hue = Math.max(0, Math.min(10, score)) * 12;
+  return `hsl(${hue}, 65%, 48%)`;
+}
+
 // "Jul 30, 2026" — compact, since it sits inside a card meta row.
 const dateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -67,9 +73,11 @@ export default async function Games() {
                     objectPosition={`${game.focal_x}% ${game.focal_y}%`}
                   />
                   {game.score != null && (
-                    <span className="score" title="My score">
-                      {game.score}
-                    </span>
+                    <span
+                      className="score-square"
+                      style={{ background: scoreColor(game.score) }}
+                      title={`My score: ${game.score}/10`}
+                    />
                   )}
                 </a>
 
@@ -94,15 +102,27 @@ export default async function Games() {
                   )}
 
                   <div className="meta-row">
-                    <div className="meta">
+                    <div className="meta game-meta">
+                      {game.updated_at && (
+                        <span>
+                          Updated {dateFmt.format(new Date(game.updated_at))}
+                        </span>
+                      )}
                       {game.status && (
                         <span className={`play-status is-${game.status}`}>
                           {STATUS_LABEL[game.status] ?? game.status}
                         </span>
                       )}
-                      {game.updated_at &&
-                        `Updated ${dateFmt.format(new Date(game.updated_at))}`}
                     </div>
+                    {game.score != null && (
+                      <span
+                        className="score-num"
+                        style={{ color: scoreColor(game.score) }}
+                      >
+                        {game.score}
+                        <span className="score-max">/10</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
