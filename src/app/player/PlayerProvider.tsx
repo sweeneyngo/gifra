@@ -344,9 +344,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             <div className="np-center">
               <div className="np-controls">
-                <button onClick={stop} aria-label="Stop" title="Stop">
-                  <StopIcon />
-                </button>
                 <button
                   className={shuffle ? "on" : ""}
                   onClick={() => setShuffle((s) => !s)}
@@ -478,6 +475,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             )}
             {showSettings && (
               <div className="np-popover np-settings-menu">
+                <div className="setting-label">Audio Options</div>
                 <label className="setting-toggle">
                   <span>
                     Normalize volume<small>−14 LUFS</small>
@@ -618,11 +616,6 @@ const PrevIcon = () => (
 const NextIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <path d="M15 6v12h2V6zM5.5 6v12L14 12z" />
-  </svg>
-);
-const StopIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <rect x="6" y="6" width="12" height="12" rx="1.5" />
   </svg>
 );
 const ShuffleIcon = () => (
