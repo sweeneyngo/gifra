@@ -42,6 +42,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [repeat, setRepeat] = useState<Repeat>("off");
   const [showDesc, setShowDesc] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const closePops = () => {
+    setShowDesc(false);
+    setShowSettings(false);
+    setShowInfo(false);
+  };
 
   const byHash = useMemo(
     () => new Map(songs.map((s) => [s.hashId, s])),
@@ -227,11 +233,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             <div className="np-right">
               <button
+                className={`np-icon${showInfo ? " on" : ""}`}
+                aria-label="Audio info"
+                onClick={() => {
+                  const v = !showInfo;
+                  closePops();
+                  setShowInfo(v);
+                }}
+              >
+                <InfoIcon />
+              </button>
+              <button
                 className={`np-icon${showDesc ? " on" : ""}`}
                 aria-label="Description"
                 onClick={() => {
-                  setShowDesc((v) => !v);
-                  setShowSettings(false);
+                  const v = !showDesc;
+                  closePops();
+                  setShowDesc(v);
                 }}
               >
                 <DescIcon />
@@ -248,8 +266,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 className={`np-icon${showSettings ? " on" : ""}`}
                 aria-label="Settings"
                 onClick={() => {
-                  setShowSettings((v) => !v);
-                  setShowDesc(false);
+                  const v = !showSettings;
+                  closePops();
+                  setShowSettings(v);
                 }}
               >
                 <GearIcon />
@@ -267,6 +286,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               </div>
             </div>
 
+            {showInfo && (
+              <div className="np-popover np-info-card">
+                <div className="pop-title">Audio</div>
+                <dl className="info-grid">
+                  {specRows(current).map(([k, v]) => (
+                    <div className="info-row" key={k}>
+                      <dt>{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
+                  ))}
+                  {specRows(current).length === 0 && (
+                    <div className="info-row">
+                      <dd>No audio details.</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            )}
             {showDesc && (
               <div className="np-popover np-desc-card">
                 <div className="pop-title">{current.title}</div>
@@ -305,7 +342,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 }
 
+function specRows(s: Song): [string, string][] {
+  const rows: [string, string][] = [];
+  if (s.audioFormat) rows.push(["Format", s.audioFormat.toUpperCase()]);
+  if (s.bitrate) rows.push(["Bitrate", `${s.bitrate} kbps`]);
+  if (s.sampleRate)
+    rows.push(["Sample rate", `${(s.sampleRate / 1000).toFixed(1)} kHz`]);
+  if (s.channels)
+    rows.push([
+      "Channels",
+      s.channels === 2 ? "Stereo" : s.channels === 1 ? "Mono" : `${s.channels}`,
+    ]);
+  if (s.durationSec != null) rows.push(["Duration", fmt(s.durationSec)]);
+  if (s.lufs != null) rows.push(["Loudness", `${s.lufs.toFixed(1)} LUFS`]);
+  return rows;
+}
+
 /* ---- icons ---- */
+const InfoIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </svg>
+);
 const PlayIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <path d="M8 5v14l11-7z" />

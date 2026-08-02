@@ -920,6 +920,29 @@ body::after {
   color: var(--text-strong);
   margin-bottom: 8px;
 }
+.np-info-card {
+  width: 240px;
+}
+.info-grid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12.5px;
+}
+.info-row dt {
+  color: var(--muted);
+}
+.info-row dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
 .np-settings-menu {
   width: 220px;
 }

@@ -14,6 +14,13 @@ export interface Song {
   statusTags: string[]; // e.g. "tentative" — status-type tags (ambiguity flag)
   singers: string[];
   artUrl: string | null; // presigned cover-art URL (24h)
+  // Audio specs (for the info panel)
+  audioFormat: string | null;
+  bitrate: number | null; // kbps
+  sampleRate: number | null; // Hz
+  channels: number | null;
+  bitsPerSample: number | null;
+  lufs: number | null; // integrated loudness
 }
 
 interface Row {
@@ -26,6 +33,12 @@ interface Row {
   released_at: string | null;
   duration: number | null;
   art_key: string | null;
+  audio_format: string | null;
+  bitrate: number | null;
+  sample_rate: number | null;
+  channels: number | null;
+  bits_per_sample: number | null;
+  loudness_lufs: number | null;
   genres: string[] | null;
   status_tags: string[] | null;
   singers: string[] | null;
@@ -37,17 +50,10 @@ export async function listSongs(): Promise<Song[]> {
     select
       s.hash_id, s.title, s.description, s.type, s.version,
       s.song_group_hash_id, s.released_at,
-      (select am.duration
-         from music.media_sources m
-         join music.audio_metadata am on am.media_source_id = m.id
-         where m.song_hash_id = s.hash_id and m.file_type = 'audio'
-           and m.deleted_at is null
-         limit 1) as duration,
-      (select m.url
-         from music.media_sources m
-         where m.song_hash_id = s.hash_id and m.file_type = 'art'
-           and m.deleted_at is null
-         order by m.created_at desc limit 1) as art_key,
+      a.format_type as audio_format,
+      am.duration, am.bitrate, am.sample_rate, am.channels,
+      am.bits_per_sample, am.loudness_lufs,
+      art.url as art_key,
       array(select g.name from music.song_genres sg
             join music.genres g on g.id = sg.genre_id
             where sg.song_id = s.id order by g.name) as genres,
@@ -60,6 +66,19 @@ export async function listSongs(): Promise<Song[]> {
             where ss.song_id = s.id
             order by ss.role = 'main' desc, si.name) as singers
     from music.songs s
+    left join lateral (
+      select m.* from music.media_sources m
+      where m.song_hash_id = s.hash_id and m.file_type = 'audio'
+        and m.deleted_at is null
+      order by m.created_at asc limit 1
+    ) a on true
+    left join music.audio_metadata am on am.media_source_id = a.id
+    left join lateral (
+      select m.url from music.media_sources m
+      where m.song_hash_id = s.hash_id and m.file_type = 'art'
+        and m.deleted_at is null
+      order by m.created_at desc limit 1
+    ) art on true
     where s.deleted_at is null
     order by s.title
   `) as Row[];
@@ -79,6 +98,12 @@ export async function listSongs(): Promise<Song[]> {
       statusTags: r.status_tags ?? [],
       singers: r.singers ?? [],
       artUrl: r.art_key ? await presign(r.art_key, 24 * 3600) : null,
+      audioFormat: r.audio_format,
+      bitrate: r.bitrate || null,
+      sampleRate: r.sample_rate || null,
+      channels: r.channels || null,
+      bitsPerSample: r.bits_per_sample || null,
+      lufs: r.loudness_lufs,
     })),
   );
 }
