@@ -429,12 +429,24 @@ function LiveLevel({
     if (!analyser || !playing) return;
     const buf = new Float32Array(analyser.fftSize);
     let raf = 0;
+    // Integrate sum-of-squares across frames; emit the RMS once per second.
+    let sumSq = 0;
+    let count = 0;
+    let last = performance.now();
     const tick = () => {
       analyser.getFloatTimeDomainData(buf);
-      let sum = 0;
-      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-      const rms = Math.sqrt(sum / buf.length);
-      setDb(rms > 1e-7 ? 20 * Math.log10(rms) : -Infinity);
+      for (let i = 0; i < buf.length; i++) {
+        sumSq += buf[i] * buf[i];
+        count++;
+      }
+      const now = performance.now();
+      if (now - last >= 1000) {
+        const rms = count ? Math.sqrt(sumSq / count) : 0;
+        setDb(rms > 1e-7 ? 20 * Math.log10(rms) : -Infinity);
+        sumSq = 0;
+        count = 0;
+        last = now;
+      }
       raf = requestAnimationFrame(tick);
     };
     tick();
