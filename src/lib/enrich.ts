@@ -309,6 +309,41 @@ export function parseItchDetails(root: El): ItchDetails {
 }
 
 /**
+ * Newest <pubDate> from a devlog RSS feed, as ISO (or null). The first item in
+ * an itch devlog feed is the most recent post.
+ */
+export function latestRssDate(xml: string): string | null {
+  const m = xml.match(/<pubDate>([^<]+)<\/pubDate>/);
+  if (!m) return null;
+  const d = new Date(m[1].trim());
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * Best-effort "last activity" date for itch pages whose info panel carries no
+ * date row: the latest devlog post. Not a true file-upload date (itch serves
+ * those only via the JS download modal), but the newest reachable signal.
+ */
+async function itchDevlogDate(root: El): Promise<string | null> {
+  const feeds = root.querySelectorAll('link[type="application/rss+xml"]');
+  const feed =
+    feeds
+      .map((l) => l.getAttribute("href") ?? "")
+      .find((h) => h.includes("devlog")) ?? feeds[0]?.getAttribute("href");
+  if (!feed) return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(feed, { headers: { "User-Agent": UA }, signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    return latestRssDate(await res.text());
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch a product page and pull Open Graph / meta tags.
  * Universal path — no per-store code. Always resolves; never throws.
  */
@@ -364,6 +399,10 @@ export async function enrich(url: string): Promise<Enriched> {
 
     const focal = image ? await computeFocal(image) : { x: 50, y: 50 };
 
+    // itch pages often omit a date row; fall back to the latest devlog post.
+    let updated_at = itch?.updated_at ?? null;
+    if (itch && !updated_at) updated_at = await itchDevlogDate(root);
+
     return {
       url,
       title,
@@ -373,7 +412,7 @@ export async function enrich(url: string): Promise<Enriched> {
       focal_y: focal.y,
       platforms: itch?.platforms ?? [],
       dev_status: itch?.dev_status ?? null,
-      updated_at: itch?.updated_at ?? null,
+      updated_at,
     };
   } catch {
     // Timeout, DNS failure, blocked, etc. — degrade to a bare link.

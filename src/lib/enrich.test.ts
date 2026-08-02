@@ -6,6 +6,7 @@ import {
   scanForProductImage,
   jsonLdImage,
   parseItchDetails,
+  latestRssDate,
 } from "./enrich";
 
 describe("storeName", () => {
@@ -96,6 +97,20 @@ describe("parseItchDetails", () => {
       dev_status: null,
       updated_at: null,
     });
+  });
+});
+
+describe("latestRssDate", () => {
+  it("reads the first pubDate as ISO", () => {
+    const xml = `<rss><channel>
+      <item><pubDate>Fri, 16 Oct 2020 01:35:49 GMT</pubDate></item>
+      <item><pubDate>Sat, 13 Sep 2019 19:03:03 GMT</pubDate></item>
+    </channel></rss>`;
+    expect(latestRssDate(xml)).toBe("2020-10-16T01:35:49.000Z");
+  });
+  it("returns null with no pubDate or an unparseable one", () => {
+    expect(latestRssDate("<rss></rss>")).toBeNull();
+    expect(latestRssDate("<pubDate>not a date</pubDate>")).toBeNull();
   });
 });
 
