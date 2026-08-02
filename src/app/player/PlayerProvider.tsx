@@ -14,9 +14,13 @@ import {
 } from "react";
 import type { Song } from "@/lib/music";
 import { groupSongs, fmt } from "@/app/music/lib";
+import {
+  nextIndex,
+  prevIndex,
+  randomIndex,
+  type Repeat,
+} from "@/app/music/transport";
 import { CoverArt } from "@/app/CoverArt";
-
-type Repeat = "off" | "all" | "one";
 
 interface PlayerCtx {
   currentHash: string | null;
@@ -87,12 +91,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!currentHash) return -1;
     const g = groupOf(currentHash);
     return order.indexOf(g ? g.latest.hashId : currentHash);
-  };
-  const randomHash = (exclude: number) => {
-    if (order.length <= 1) return order[0];
-    let j = exclude;
-    while (j === exclude) j = Math.floor(Math.random() * order.length);
-    return order[j];
   };
   const normFactor = (hash: string | null) => {
     const lufs = hash ? (byHash.get(hash)?.lufs ?? null) : null;
@@ -236,11 +234,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
   // The next/prev/end target respecting shuffle + repeat.
   function nextHash(auto: boolean): string | null {
+    if (order.length === 0) return null;
     const i = anchorIndex();
-    if (shuffle) return randomHash(i);
-    if (i + 1 < order.length) return order[i + 1];
-    if (repeat === "all") return order[0];
-    return auto ? null : order[0];
+    if (shuffle) return order[randomIndex(order.length, i)];
+    const ni = nextIndex(order.length, i, repeat, auto);
+    return ni === null ? null : order[ni];
   }
   function next() {
     const h = nextHash(false);
@@ -254,8 +252,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     const i = anchorIndex();
     const h = shuffle
-      ? randomHash(i)
-      : order[(i - 1 + order.length) % order.length];
+      ? order[randomIndex(order.length, i)]
+      : order[prevIndex(order.length, i)];
     if (h) startTrack(h, crossfade && playing);
   }
   function onEnded() {
