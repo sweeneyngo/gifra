@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { storeName, enrich } from "./enrich";
+import { parse } from "node-html-parser";
+import {
+  storeName,
+  enrich,
+  scanForProductImage,
+  jsonLdImage,
+} from "./enrich";
 
 describe("storeName", () => {
   it("maps known storefronts", () => {
@@ -95,5 +101,78 @@ describe("enrich", () => {
     expect(r.title).toBeNull();
     expect(r.image_url).toBeNull();
     expect(r.store).toBe("Example");
+  });
+});
+
+const scan = (html: string, base = "https://x.com/p") =>
+  scanForProductImage(parse(html), base);
+
+describe("scanForProductImage", () => {
+  it("skips logos/nav/icons and picks the product image", () => {
+    const html = `
+      <img src="/logo.png" />
+      <img src="https://cdn.x.com/nav/menu.png" />
+      <img src="https://cdn.x.com/hi-res/prod_01.jpg?sw=800" />`;
+    expect(scan(html)).toBe("https://cdn.x.com/hi-res/prod_01.jpg?sw=800");
+  });
+  it("resolves relative URLs against the page", () => {
+    expect(scan(`<img src="/hi-res/c.jpg?w=900" />`)).toBe(
+      "https://x.com/hi-res/c.jpg?w=900",
+    );
+  });
+  it("reads data-src and the first srcset entry", () => {
+    expect(scan(`<img data-src="https://cdn.x.com/large/a.jpg" />`)).toBe(
+      "https://cdn.x.com/large/a.jpg",
+    );
+    expect(
+      scan(
+        `<img srcset="https://cdn.x.com/b.jpg?w=600 600w, https://cdn.x.com/b2.jpg 1200w" />`,
+      ),
+    ).toBe("https://cdn.x.com/b.jpg?w=600");
+  });
+  it("ignores data URIs / svgs and returns null when nothing qualifies", () => {
+    expect(
+      scan(`<img src="data:image/png;base64,xx" /><img src="/icon.svg" />`),
+    ).toBeNull();
+  });
+  it("prefers the higher-scoring candidate", () => {
+    const html = `
+      <img src="https://cdn.x.com/small.jpg" />
+      <img src="https://cdn.x.com/large/big.jpg?w=1200" />`;
+    expect(scan(html)).toBe("https://cdn.x.com/large/big.jpg?w=1200");
+  });
+});
+
+const ld = (obj: unknown) =>
+  jsonLdImage(
+    parse(
+      `<script type="application/ld+json">${JSON.stringify(obj)}</script>`,
+    ),
+  );
+
+describe("jsonLdImage", () => {
+  it("reads image as a string", () => {
+    expect(ld({ image: "https://x.com/a.jpg" })).toBe("https://x.com/a.jpg");
+  });
+  it("reads the first of an image array", () => {
+    expect(ld({ image: ["https://x.com/a.jpg", "https://x.com/b.jpg"] })).toBe(
+      "https://x.com/a.jpg",
+    );
+  });
+  it("reads image as an object with a url", () => {
+    expect(ld({ image: { url: "https://x.com/c.jpg" } })).toBe(
+      "https://x.com/c.jpg",
+    );
+  });
+  it("finds an image nested in @graph", () => {
+    expect(
+      ld({ "@graph": [{ "@type": "Product", image: { url: "https://x.com/d.jpg" } }] }),
+    ).toBe("https://x.com/d.jpg");
+  });
+  it("returns null with no image, and tolerates malformed JSON-LD", () => {
+    expect(ld({ name: "nope" })).toBeNull();
+    expect(
+      jsonLdImage(parse(`<script type="application/ld+json">{ not json </script>`)),
+    ).toBeNull();
   });
 });

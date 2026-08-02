@@ -121,7 +121,7 @@ async function shopifyImage(pageUrl: string): Promise<string | null> {
 }
 
 /** Pull the first usable image URL out of any JSON-LD blocks on the page. */
-function jsonLdImage(root: El): string | null {
+export function jsonLdImage(root: El): string | null {
   for (const s of root.querySelectorAll('script[type="application/ld+json"]')) {
     let data: unknown;
     try {
@@ -173,7 +173,7 @@ const BAD_IMG =
  * Last-resort: scan <img> tags and pick the most product-looking one.
  * Scores by size hints and hi-res/product path markers. Heuristic, not perfect.
  */
-function scanForProductImage(root: El, baseUrl: string): string | null {
+export function scanForProductImage(root: El, baseUrl: string): string | null {
   let best: { url: string; score: number } | null = null;
   for (const img of root.querySelectorAll("img")) {
     let src =
