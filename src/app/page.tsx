@@ -85,6 +85,27 @@ export default async function Home() {
                     {item.store ? `${item.store} · ` : ""}
                     {dateFmt.format(new Date(item.created_at))}
                   </div>
+
+                  {item.title && (
+                    <div className="compare">
+                      <span className="compare-label">Deals</span>
+                      <a
+                        href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.title)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Shopping ↗
+                      </a>
+                      <a
+                        href={`https://camelcamelcamel.com/search?sq=${encodeURIComponent(item.title)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Amazon price history"
+                      >
+                        Camel ↗
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             );
