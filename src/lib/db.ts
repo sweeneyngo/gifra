@@ -96,9 +96,12 @@ export interface Game {
   image_url: string | null;
   score: number | null; // personal score, owner-set; null if unrated
   status: string | null; // personal play-status (PlayStatus)
+  recommended: boolean; // owner-flagged pick
   dev_status: string | null; // itch's dev status, e.g. "Released"
   platforms: string | null; // comma-joined, e.g. "Windows, Linux"
   updated_at: string | null; // itch's last-update timestamp
+  rating_value: number | null; // itch community average (out of 5)
+  rating_count: number | null; // number of community ratings
   created_at: string;
   focal_x: number;
   focal_y: number;
@@ -108,8 +111,9 @@ export async function listGames(): Promise<Game[]> {
   // Highest personal score first (unrated — mostly planned — sink to the
   // bottom), then most recently updated on itch.
   return (await sql`
-    select id, url, title, image_url, score, status, dev_status, platforms,
-           updated_at, created_at, focal_x, focal_y
+    select id, url, title, image_url, score, status, recommended, dev_status,
+           platforms, updated_at, rating_value, rating_count,
+           created_at, focal_x, focal_y
     from games
     order by score desc nulls last, updated_at desc nulls last
   `) as Game[];
@@ -125,31 +129,41 @@ export async function upsertGame(fields: {
   image_url: string | null;
   score: number | null;
   status: string | null;
+  recommended?: boolean;
   dev_status: string | null;
   platforms: string | null;
   updated_at: string | null;
+  rating_value: number | null;
+  rating_count: number | null;
   focal_x?: number;
   focal_y?: number;
 }): Promise<Game> {
   const rows = (await sql`
     insert into games
-      (url, title, image_url, score, status, dev_status, platforms, updated_at, focal_x, focal_y)
+      (url, title, image_url, score, status, recommended, dev_status, platforms,
+       updated_at, rating_value, rating_count, focal_x, focal_y)
     values
       (${fields.url}, ${fields.title}, ${fields.image_url}, ${fields.score},
-       ${fields.status}, ${fields.dev_status}, ${fields.platforms}, ${fields.updated_at},
+       ${fields.status}, ${fields.recommended ?? false}, ${fields.dev_status},
+       ${fields.platforms}, ${fields.updated_at},
+       ${fields.rating_value}, ${fields.rating_count},
        ${fields.focal_x ?? 50}, ${fields.focal_y ?? 50})
     on conflict (url) do update set
-      title      = excluded.title,
-      image_url  = excluded.image_url,
-      score      = coalesce(excluded.score, games.score),
-      status     = coalesce(excluded.status, games.status),
-      dev_status = excluded.dev_status,
-      platforms  = excluded.platforms,
-      updated_at = excluded.updated_at,
-      focal_x    = excluded.focal_x,
-      focal_y    = excluded.focal_y
-    returning id, url, title, image_url, score, status, dev_status, platforms,
-              updated_at, created_at, focal_x, focal_y
+      title        = excluded.title,
+      image_url    = excluded.image_url,
+      score        = coalesce(excluded.score, games.score),
+      status       = coalesce(excluded.status, games.status),
+      recommended  = excluded.recommended,
+      dev_status   = excluded.dev_status,
+      platforms    = excluded.platforms,
+      updated_at   = excluded.updated_at,
+      rating_value = excluded.rating_value,
+      rating_count = excluded.rating_count,
+      focal_x      = excluded.focal_x,
+      focal_y      = excluded.focal_y
+    returning id, url, title, image_url, score, status, recommended, dev_status,
+              platforms, updated_at, rating_value, rating_count,
+              created_at, focal_x, focal_y
   `) as Game[];
   return rows[0];
 }

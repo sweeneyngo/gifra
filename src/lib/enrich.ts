@@ -11,11 +11,19 @@ export interface Enriched {
   platforms: string[]; // e.g. ["Windows", "Linux", "Web"]
   dev_status: string | null; // itch's dev status, e.g. "Released", "In development"
   updated_at: string | null; // ISO timestamp of the game's last update
+  rating_value: number | null; // itch community average (out of 5)
+  rating_count: number | null; // number of community ratings
 }
 
 // Fields the generic path leaves empty; spread into every `enrich` return so a
 // non-itch page carries the itch keys as their neutral defaults.
-const NO_ITCH = { platforms: [] as string[], dev_status: null, updated_at: null };
+const NO_ITCH = {
+  platforms: [] as string[],
+  dev_status: null,
+  updated_at: null,
+  rating_value: null,
+  rating_count: null,
+};
 
 const clampPct = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
@@ -231,18 +239,37 @@ const ITCH_PLATFORM: Record<string, string> = {
   html5: "Web",
 };
 
-/** Clean product name from an itch page's JSON-LD (`og:title` is absent there). */
-function jsonLdName(root: El): string | null {
+interface ItchProduct {
+  name: string | null; // clean game name (`og:title` is absent on itch)
+  rating_value: number | null; // itch community average, out of 5
+  rating_count: number | null; // number of community ratings
+}
+
+/** Read the Product block from an itch page's JSON-LD (name + aggregate rating). */
+function jsonLdProduct(root: El): ItchProduct {
+  const out: ItchProduct = { name: null, rating_value: null, rating_count: null };
   for (const s of root.querySelectorAll('script[type="application/ld+json"]')) {
     try {
-      const data = JSON.parse(s.text) as { "@type"?: string; name?: string };
-      if (data["@type"] === "Product" && typeof data.name === "string")
-        return data.name.trim();
+      const data = JSON.parse(s.text) as {
+        "@type"?: string;
+        name?: string;
+        aggregateRating?: { ratingValue?: string | number; ratingCount?: string | number };
+      };
+      if (data["@type"] !== "Product") continue;
+      if (typeof data.name === "string") out.name = data.name.trim();
+      const r = data.aggregateRating;
+      if (r) {
+        const v = Number(r.ratingValue);
+        const c = Number(r.ratingCount);
+        if (Number.isFinite(v)) out.rating_value = v;
+        if (Number.isFinite(c)) out.rating_count = c;
+      }
+      return out;
     } catch {
       /* skip malformed block */
     }
   }
-  return null;
+  return out;
 }
 
 export interface ItchDetails {
@@ -250,6 +277,8 @@ export interface ItchDetails {
   platforms: string[];
   dev_status: string | null;
   updated_at: string | null; // ISO, or null if unparseable/absent
+  rating_value: number | null; // itch community average (out of 5)
+  rating_count: number | null; // number of community ratings
 }
 
 /**
@@ -305,7 +334,15 @@ export function parseItchDetails(root: El): ItchDetails {
 
   const platforms = [...new Set([...fromIcons, ...fromRow])];
 
-  return { title: jsonLdName(root), platforms, dev_status, updated_at };
+  const product = jsonLdProduct(root);
+  return {
+    title: product.name,
+    platforms,
+    dev_status,
+    updated_at,
+    rating_value: product.rating_value,
+    rating_count: product.rating_count,
+  };
 }
 
 /**
@@ -413,6 +450,8 @@ export async function enrich(url: string): Promise<Enriched> {
       platforms: itch?.platforms ?? [],
       dev_status: itch?.dev_status ?? null,
       updated_at,
+      rating_value: itch?.rating_value ?? null,
+      rating_count: itch?.rating_count ?? null,
     };
   } catch {
     // Timeout, DNS failure, blocked, etc. — degrade to a bare link.

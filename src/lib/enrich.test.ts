@@ -31,7 +31,7 @@ describe("storeName", () => {
 // info-panel table (Updated/Status/Platforms), and platform download icons.
 const ITCH_HTML = `<html><head>
   <meta property="og:image" content="https://img.itch.zone/cover.png" />
-  <script type="application/ld+json">{"@type":"Product","name":"Your Happy Place"}</script>
+  <script type="application/ld+json">{"@type":"Product","name":"Your Happy Place","aggregateRating":{"@type":"AggregateRating","ratingValue":"4.5","ratingCount":22}}</script>
 </head><body>
   <div class="game_info_panel_widget"><table><tbody>
     <tr><td>Updated</td><td><abbr title="30 July 2026 @ 12:17 UTC">2 days ago</abbr></td></tr>
@@ -59,6 +59,10 @@ describe("parseItchDetails", () => {
   });
   it("resolves platforms from download icons", () => {
     expect(d.platforms).toEqual(["Windows", "Linux"]);
+  });
+  it("reads the community rating value and count from JSON-LD", () => {
+    expect(d.rating_value).toBe(4.5);
+    expect(d.rating_count).toBe(22);
   });
 
   it("falls back to Published when a game was never updated", () => {
@@ -96,6 +100,8 @@ describe("parseItchDetails", () => {
       platforms: [],
       dev_status: null,
       updated_at: null,
+      rating_value: null,
+      rating_count: null,
     });
   });
 });

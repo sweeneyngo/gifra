@@ -34,6 +34,12 @@ function scoreColor(score: number): string {
   return `hsl(${hue}, 65%, 48%)`;
 }
 
+const StarIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+  </svg>
+);
+
 // "Jul 30, 2026" — compact, since it sits inside a card meta row.
 const dateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -88,6 +94,11 @@ function GridCard({ game }: { game: Game }) {
             title={`My score: ${game.score}/10`}
           />
         )}
+        {game.recommended && (
+          <span className="rec-badge" title="Recommended">
+            <StarIcon /> Recommended
+          </span>
+        )}
       </a>
 
       <div className="body">
@@ -132,6 +143,11 @@ function ListRow({ game }: { game: Game }) {
         />
       </span>
       <span className="row-name">{game.title ?? game.url}</span>
+      {game.recommended && (
+        <span className="rec-star" title="Recommended" aria-label="Recommended">
+          <StarIcon />
+        </span>
+      )}
       <PlatformIcons platforms={parsePlatforms(game.platforms)} />
       {game.status && (
         <span className={`play-status is-${game.status} row-status`}>

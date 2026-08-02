@@ -30,6 +30,7 @@ interface Entry {
   title: string | null; // optional owner-provided label (for non-itch games)
   status: string | null;
   score: number | null;
+  recommended: boolean;
 }
 
 /** Parse the import file (JSON array or CSV) into rows. */
@@ -41,12 +42,14 @@ function parseEntries(raw: string): Entry[] {
       title?: string | null;
       status?: string | null;
       score?: number | string | null;
+      recommended?: boolean;
     }[];
     return arr.map((r) => ({
       url: r.url,
       title: r.title?.trim() || null,
       status: toStatus(r.status),
       score: toScore(r.score),
+      recommended: r.recommended === true,
     }));
   }
   // CSV: "url,status,score" — split on commas, but only the first three fields.
@@ -61,6 +64,7 @@ function parseEntries(raw: string): Entry[] {
         title: null,
         status: toStatus(status),
         score: toScore(score),
+        recommended: false,
       };
     })
     .filter((e) => /^https?:\/\//i.test(e.url)); // drops any header row
@@ -108,7 +112,7 @@ if (entries.length === 0) {
 
 console.log(`Importing ${entries.length} game(s)…`);
 let ok = 0;
-for (const { url, title, status, score } of entries) {
+for (const { url, title, status, score, recommended } of entries) {
   try {
     const data = await enrich(url);
     await upsertGame({
@@ -117,15 +121,19 @@ for (const { url, title, status, score } of entries) {
       image_url: data.image_url,
       score,
       status,
+      recommended,
       dev_status: data.dev_status,
       platforms: data.platforms.length ? data.platforms.join(", ") : null,
       updated_at: data.updated_at,
+      rating_value: data.rating_value,
+      rating_count: data.rating_count,
       focal_x: data.focal_x,
       focal_y: data.focal_y,
     });
     ok++;
     const tags = [
       status,
+      recommended ? "★rec" : null,
       data.platforms.join("/") || null,
       score != null ? `★${score}` : null,
     ]
