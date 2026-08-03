@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Nav } from "./Nav";
@@ -7,11 +7,12 @@ import { PlayerProvider } from "./player/PlayerProvider";
 import "./theme.css";
 import "./globals.css";
 
-// Self-hosted at build time by next/font — no external requests at runtime.
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-hanken",
+// Momo Trust Sans (SIL OFL — see src/app/fonts/OFL.txt), self-hosted via
+// next/font. One variable file covers every weight the UI uses (400/600/700).
+const momo = localFont({
+  src: "./fonts/MomoTrustSans-VariableFont_wght.ttf",
+  variable: "--font-momo",
+  weight: "200 800",
   display: "swap",
 });
 
@@ -27,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={hanken.variable}>
+    <html lang="en" className={momo.variable}>
       <body>
         <PlayerProvider>
           <Nav />
