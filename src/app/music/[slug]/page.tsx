@@ -24,7 +24,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const { group } = await resolve(slug);
-  if (!group) return { title: "Not found — gifra" };
+  if (!group) return { title: "Not found" };
 
   const s = group.latest;
   const img = `/api/music/songs/${s.hashId}/art`;
@@ -33,7 +33,7 @@ export async function generateMetadata({
     160,
   );
   return {
-    title: `${s.title} — gifra`,
+    title: s.title,
     description: desc,
     openGraph: {
       title: s.title,

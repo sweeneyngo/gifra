@@ -17,11 +17,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const game = await resolve(slug);
-  if (!game) return { title: "Not found — FVNs" };
+  if (!game) return { title: "Not found" };
 
   const title = game.review_title ?? game.title ?? "FVN";
   return {
-    title: `${title} — FVNs`,
+    title,
     openGraph: {
       title,
       images: game.image_url ? [game.image_url] : [],

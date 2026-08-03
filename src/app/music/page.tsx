@@ -4,7 +4,7 @@ import { MusicLibrary } from "./MusicLibrary";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Music — gifra",
+  title: "Music",
   description: "A library of vocal-synth covers.",
 };
 

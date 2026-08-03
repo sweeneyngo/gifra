@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/auth";
 import { ReviewEditor } from "./ReviewEditor";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Edit review — FVNs" };
+export const metadata = { title: "Edit review" };
 
 export default async function EditReviewPage({
   params,

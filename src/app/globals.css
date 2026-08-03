@@ -452,22 +452,6 @@ body::after {
   flex-shrink: 0;
 }
 
-/* "Read review" links on the cards. */
-.review-link {
-  align-self: flex-start;
-  margin-top: 2px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
-}
-.review-link:hover {
-  color: var(--accent-2);
-}
-.row-review {
-  flex: none;
-  margin-left: 4px;
-}
 .review-edit-link {
   color: var(--accent);
   font-size: 13px;
@@ -477,8 +461,6 @@ body::after {
 
 /* ---------- Review article ---------- */
 .article {
-  max-width: 680px;
-  margin: 0 auto;
   padding: 8px 0 40px;
 }
 .article-back {
@@ -691,6 +673,7 @@ body::after {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .edit-btn:hover {
@@ -869,6 +852,12 @@ body::after {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-strong);
+  transition: color 0.12s;
+}
+/* Match the grid card: white title, amber on hover of the row link. */
+.game-row-link:hover .row-name {
+  color: var(--accent);
 }
 .game-row .game-tags {
   flex: none;

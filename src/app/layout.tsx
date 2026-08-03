@@ -19,7 +19,9 @@ const sans = Space_Grotesk({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.gifra.me"),
-  title: "My Wishlist",
+  // Child routes flow through the template (→ "… — gifra"); the template doesn't
+  // apply to the root segment, so `default` carries the home page's full title.
+  title: { default: "My Wishlist — gifra", template: "%s — gifra" },
   description: "A running wishlist of things I'm after.",
 };
 

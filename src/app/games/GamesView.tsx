@@ -21,6 +21,23 @@ import {
 
 type EditTarget = Game | "new";
 
+const ReviewIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+    <path d="M14 2v6h6" />
+    <line x1="8" y1="13" x2="16" y2="13" />
+    <line x1="8" y1="17" x2="13" y2="17" />
+  </svg>
+);
+
+function ReviewLink({ slug }: { slug: string }) {
+  return (
+    <Link className="edit-btn" href={`/games/${slug}`} title="Read review" aria-label="Read review">
+      <ReviewIcon />
+    </Link>
+  );
+}
+
 // "Jul 30, 2026" — compact, since it sits inside a card meta row.
 const dateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -89,6 +106,7 @@ function GridCard({
             {game.title ?? game.url}
           </a>
           <NameMarks game={game} />
+          {game.has_review && game.slug && <ReviewLink slug={game.slug} />}
           {admin && <EditButton onClick={() => onEdit(game)} />}
         </div>
 
@@ -112,12 +130,6 @@ function GridCard({
             </span>
           )}
         </div>
-
-        {game.has_review && game.slug && (
-          <Link className="review-link" href={`/games/${game.slug}`}>
-            Read review →
-          </Link>
-        )}
       </div>
     </div>
   );
@@ -167,11 +179,7 @@ function ListRow({
   return (
     <div className="game-row">
       {content}
-      {game.has_review && game.slug && (
-        <Link className="review-link row-review" href={`/games/${game.slug}`}>
-          Review →
-        </Link>
-      )}
+      {game.has_review && game.slug && <ReviewLink slug={game.slug} />}
       {admin && <EditButton onClick={() => onEdit(game)} />}
     </div>
   );
