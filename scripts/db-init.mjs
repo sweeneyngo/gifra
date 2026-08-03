@@ -43,6 +43,10 @@ await sql`
     updated_at  timestamptz,
     rating_value real,
     rating_count integer,
+    slug         text unique,
+    review_md    text,
+    review_title text,
+    review_updated_at timestamptz,
     created_at  timestamptz not null default now(),
     focal_x     real not null default 50,
     focal_y     real not null default 50
@@ -54,5 +58,10 @@ await sql`
 await sql`alter table games add column if not exists recommended boolean not null default false`;
 await sql`alter table games add column if not exists rating_value real`;
 await sql`alter table games add column if not exists rating_count integer`;
+await sql`alter table games add column if not exists slug text`;
+await sql`alter table games add column if not exists review_md text`;
+await sql`alter table games add column if not exists review_title text`;
+await sql`alter table games add column if not exists review_updated_at timestamptz`;
+await sql`create unique index if not exists games_slug_key on games (slug)`;
 
 console.log("✅ games table ready.");

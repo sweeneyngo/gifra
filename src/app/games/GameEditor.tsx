@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import type { Game } from "@/lib/db";
 import { STATUS_LABEL } from "./marks";
 import { addGame, updateGame, reenrichGame, removeGame } from "./actions";
@@ -136,6 +137,12 @@ export function GameEditor({ game, onClose }: Props) {
             />
             <span>Recommended</span>
           </label>
+
+          {!isNew && existing!.slug && (
+            <Link className="review-edit-link" href={`/games/${existing!.slug}/edit`}>
+              {existing!.has_review ? "Edit review →" : "Write a review →"}
+            </Link>
+          )}
 
           {error && <p className="login-error">{error}</p>}
 

@@ -24,6 +24,9 @@
     "node-html-parser": "^7.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
     "sharp": "^0.32.6",
     "simple-icons": "^16.27.1",
     "smartcrop-sharp": "^2.0.8"

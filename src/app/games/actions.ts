@@ -3,11 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { enrich } from "@/lib/enrich";
+import { gameSlugBase, uniqueSlug } from "@/lib/slug";
 import {
   upsertGame,
   updateGameOwner,
   updateGameScraped,
   deleteGame,
+  slugExists,
+  updateReview,
+  clearReview,
 } from "@/lib/db";
 
 export interface OwnerFields {
@@ -29,8 +33,10 @@ export async function addGame(input: OwnerFields & { url: string }): Promise<voi
   if (!d.title && !d.image_url) {
     throw new Error("Couldn't load that page — check the URL is a live itch.io game.");
   }
+  const slug = await uniqueSlug(gameSlugBase(d.title, input.url), slugExists);
   await upsertGame({
     url: input.url,
+    slug,
     title: d.title,
     image_url: d.image_url,
     score: input.score,
@@ -75,4 +81,26 @@ export async function removeGame(id: string): Promise<void> {
   await requireAdmin();
   await deleteGame(id);
   revalidatePath("/games");
+}
+
+export async function saveReview(
+  id: string,
+  fields: { title: string | null; md: string },
+): Promise<void> {
+  await requireAdmin();
+  const md = fields.md.trim();
+  if (!md) {
+    await clearReview(id);
+  } else {
+    await updateReview(id, { title: fields.title?.trim() || null, md });
+  }
+  revalidatePath("/games");
+  revalidatePath("/games/[slug]", "page");
+}
+
+export async function removeReview(id: string): Promise<void> {
+  await requireAdmin();
+  await clearReview(id);
+  revalidatePath("/games");
+  revalidatePath("/games/[slug]", "page");
 }

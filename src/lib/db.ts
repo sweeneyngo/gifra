@@ -102,9 +102,18 @@ export interface Game {
   updated_at: string | null; // itch's last-update timestamp
   rating_value: number | null; // itch community average (out of 5)
   rating_count: number | null; // number of community ratings
+  slug: string | null; // permalink for the review page
+  has_review: boolean; // whether a review body exists (full body fetched separately)
   created_at: string;
   focal_x: number;
   focal_y: number;
+}
+
+/** A game plus its full review body — for the article page. */
+export interface GameWithReview extends Game {
+  review_md: string | null;
+  review_title: string | null;
+  review_updated_at: string | null;
 }
 
 export async function listGames(): Promise<Game[]> {
@@ -113,10 +122,51 @@ export async function listGames(): Promise<Game[]> {
   return (await sql`
     select id, url, title, image_url, score, status, recommended, dev_status,
            platforms, updated_at, rating_value, rating_count,
+           slug, (review_md is not null) as has_review,
            created_at, focal_x, focal_y
     from games
     order by score desc nulls last, updated_at desc nulls last
   `) as Game[];
+}
+
+/** Full game row incl. the review body, by permalink slug (null if none). */
+export async function getGameBySlug(slug: string): Promise<GameWithReview | null> {
+  const rows = (await sql`
+    select id, url, title, image_url, score, status, recommended, dev_status,
+           platforms, updated_at, rating_value, rating_count,
+           slug, (review_md is not null) as has_review,
+           review_md, review_title, review_updated_at,
+           created_at, focal_x, focal_y
+    from games
+    where slug = ${slug}
+  `) as GameWithReview[];
+  return rows[0] ?? null;
+}
+
+/** Is a slug already taken? (used to keep generated slugs unique). */
+export async function slugExists(slug: string): Promise<boolean> {
+  const rows = (await sql`select 1 from games where slug = ${slug}`) as unknown[];
+  return rows.length > 0;
+}
+
+export async function updateReview(
+  id: string,
+  fields: { title: string | null; md: string | null },
+): Promise<void> {
+  await sql`
+    update games
+    set review_title = ${fields.title}, review_md = ${fields.md},
+        review_updated_at = now()
+    where id = ${id}
+  `;
+}
+
+export async function clearReview(id: string): Promise<void> {
+  await sql`
+    update games
+    set review_md = null, review_title = null, review_updated_at = null
+    where id = ${id}
+  `;
 }
 
 /**
@@ -135,18 +185,19 @@ export async function upsertGame(fields: {
   updated_at: string | null;
   rating_value: number | null;
   rating_count: number | null;
+  slug?: string | null;
   focal_x?: number;
   focal_y?: number;
 }): Promise<Game> {
   const rows = (await sql`
     insert into games
       (url, title, image_url, score, status, recommended, dev_status, platforms,
-       updated_at, rating_value, rating_count, focal_x, focal_y)
+       updated_at, rating_value, rating_count, slug, focal_x, focal_y)
     values
       (${fields.url}, ${fields.title}, ${fields.image_url}, ${fields.score},
        ${fields.status}, ${fields.recommended ?? false}, ${fields.dev_status},
        ${fields.platforms}, ${fields.updated_at},
-       ${fields.rating_value}, ${fields.rating_count},
+       ${fields.rating_value}, ${fields.rating_count}, ${fields.slug ?? null},
        ${fields.focal_x ?? 50}, ${fields.focal_y ?? 50})
     on conflict (url) do update set
       title        = excluded.title,
@@ -159,10 +210,12 @@ export async function upsertGame(fields: {
       updated_at   = excluded.updated_at,
       rating_value = excluded.rating_value,
       rating_count = excluded.rating_count,
+      slug         = coalesce(games.slug, excluded.slug),
       focal_x      = excluded.focal_x,
       focal_y      = excluded.focal_y
     returning id, url, title, image_url, score, status, recommended, dev_status,
               platforms, updated_at, rating_value, rating_count,
+              slug, (review_md is not null) as has_review,
               created_at, focal_x, focal_y
   `) as Game[];
   return rows[0];

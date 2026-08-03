@@ -13,7 +13,11 @@
 // --experimental-strip-types so it reuses the app's own enrich()/db code.
 import { readFileSync } from "node:fs";
 import { enrich } from "../src/lib/enrich.ts";
-import { upsertGame } from "../src/lib/db.ts";
+import { upsertGame, slugExists } from "../src/lib/db.ts";
+import { gameSlugBase, uniqueSlug } from "../src/lib/slug.ts";
+
+// Slugs are unique across the table; track ones assigned this run too.
+const seen = new Set<string>();
 
 const path = process.argv[2];
 if (!path) {
@@ -115,8 +119,14 @@ let ok = 0;
 for (const { url, title, status, score, recommended } of entries) {
   try {
     const data = await enrich(url);
+    const slug = await uniqueSlug(
+      gameSlugBase(data.title ?? title, url),
+      async (s) => seen.has(s) || (await slugExists(s)),
+    );
+    seen.add(slug);
     await upsertGame({
       url,
+      slug, // upsert keeps an existing slug; only fills it when currently null
       title: data.title ?? title, // itch name wins; else the owner-provided label
       image_url: data.image_url,
       score,

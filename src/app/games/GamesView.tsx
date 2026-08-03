@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { Game } from "@/lib/db";
 import { CoverArt } from "../CoverArt";
 import { logout } from "../admin/actions";
@@ -111,6 +112,12 @@ function GridCard({
             </span>
           )}
         </div>
+
+        {game.has_review && game.slug && (
+          <Link className="review-link" href={`/games/${game.slug}`}>
+            Read review →
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -160,6 +167,11 @@ function ListRow({
   return (
     <div className="game-row">
       {content}
+      {game.has_review && game.slug && (
+        <Link className="review-link row-review" href={`/games/${game.slug}`}>
+          Review →
+        </Link>
+      )}
       {admin && <EditButton onClick={() => onEdit(game)} />}
     </div>
   );
