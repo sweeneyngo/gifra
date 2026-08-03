@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Space_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Nav } from "./Nav";
@@ -7,12 +7,13 @@ import { PlayerProvider } from "./player/PlayerProvider";
 import "./theme.css";
 import "./globals.css";
 
-// Momo Trust Sans (SIL OFL — see src/app/fonts/OFL.txt), self-hosted via
-// next/font. One variable file covers every weight the UI uses (400/600/700).
-const momo = localFont({
-  src: "./fonts/MomoTrustSans-VariableFont_wght.ttf",
-  variable: "--font-momo",
-  weight: "200 800",
+// Self-hosted at build time by next/font — no external requests at runtime.
+// Swap the import + variable here (and --font-sans in globals.css) to try
+// another Google font.
+const sans = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans-loaded",
   display: "swap",
 });
 
@@ -28,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={momo.variable}>
+    <html lang="en" className={sans.variable}>
       <body>
         <PlayerProvider>
           <Nav />
