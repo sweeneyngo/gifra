@@ -363,7 +363,7 @@ body::after {
 .name-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 .name-row .name {
   flex: 0 1 auto;
@@ -767,7 +767,7 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
 }
 .plat {
   display: inline-flex;
@@ -822,7 +822,7 @@ body::after {
 .game-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
   padding: 8px 12px;
   background: var(--card);
   text-decoration: none;
