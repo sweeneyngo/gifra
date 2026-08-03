@@ -6,8 +6,10 @@ import {
   siDiscord,
 } from "simple-icons";
 import { listItems } from "@/lib/db";
+import { isAdmin } from "@/lib/auth";
 import { TopActions } from "./TopActions";
 import { CoverArt } from "./CoverArt";
+import { WishlistView } from "./WishlistView";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +17,8 @@ export const dynamic = "force-dynamic";
 const PAGE_TITLE = "My Wishlist";
 const OWNER_HANDLE = "ifuxyl";
 
-// Full date: "August 1, 2026" (not "Aug 1").
-const dateFmt = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  day: "numeric",
-  year: "numeric",
-});
-
 export default async function Home() {
-  const items = await listItems();
-  const remaining = items.filter((i) => i.status !== "received").length;
+  const [items, admin] = await Promise.all([listItems(), isAdmin()]);
 
   return (
     <div className="wrap">
@@ -44,75 +38,7 @@ export default async function Home() {
 
       <div className="hline" />
 
-      <div className="toolbar">
-        <span className="count">
-          {items.length} item{items.length === 1 ? "" : "s"}
-          {items.length > 0 && ` · ${remaining} still wanted`}
-        </span>
-      </div>
-
-      {items.length === 0 ? (
-        <div className="empty-state">Nothing here yet — check back soon.</div>
-      ) : (
-        <div className="grid">
-          {items.map((item) => {
-            const received = item.status === "received";
-            return (
-              <div
-                key={item.id}
-                className={`card${received ? " received" : ""}`}
-              >
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="thumb"
-                  aria-label={item.title ?? "item"}
-                >
-                  <CoverArt
-                    src={item.image_url}
-                    alt=""
-                    objectPosition={`${item.focal_x}% ${item.focal_y}%`}
-                  />
-                </a>
-
-                <div className="body">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="name"
-                  >
-                    {item.title ?? item.url}
-                  </a>
-
-                  <div className="meta-row">
-                    <div className="meta">
-                      {received && (
-                        <span className="received-tag">Received · </span>
-                      )}
-                      {item.store ? `${item.store} · ` : ""}
-                      {dateFmt.format(new Date(item.created_at))}
-                    </div>
-                    {item.title && (
-                      <a
-                        className="compare-btn"
-                        href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.title)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="Compare prices on Google Shopping"
-                        title="Compare prices on Google Shopping"
-                      >
-                        <TagIcon />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <WishlistView items={items} admin={admin} />
 
       <footer className="footer">
         <div className="footer-row">
@@ -152,14 +78,6 @@ export default async function Home() {
     </div>
   );
 }
-
-
-const TagIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L3 13V3h10z" />
-    <circle cx="7.5" cy="7.5" r="1.5" />
-  </svg>
-);
 
 /* ---- Official brand marks (simple-icons), icon-only + linked ---- */
 function BrandLink({

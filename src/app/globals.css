@@ -444,6 +444,14 @@ body::after {
   gap: 8px;
 }
 
+/* Right-side card controls (compare link + edit pencil). */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* Per-card / per-row edit pencil (admin only). */
 .edit-btn {
   flex: none;
