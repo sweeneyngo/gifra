@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/wplace/cron",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

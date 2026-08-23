@@ -1948,3 +1948,102 @@ input[type="range"]::-moz-range-thumb {
     font-size: 22px;
   }
 }
+
+/* ============================================================
+   wplace "Canvas Watch" — progress dashboard
+   ============================================================ */
+.wp-intro,
+.wp-empty {
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+.wp-empty code {
+  color: var(--accent);
+  background: var(--card);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.wp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+.wp-project {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 1.25rem;
+}
+.wp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.wp-head h2 {
+  margin: 0;
+  color: var(--text-strong);
+}
+.wp-sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.wp-pct {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.wp-renders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.wp-renders figure {
+  margin: 0;
+}
+.wp-renders img {
+  display: block;
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.wp-renders figcaption {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+.wp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.wp-stats b {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.wp-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.wp-chart-tick {
+  fill: var(--muted);
+  font-size: 9px;
+}
+.wp-chart-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}

@@ -107,6 +107,41 @@ node --env-file=.env.local --experimental-strip-types scripts/games-import.ts ga
 Each row is enriched live and upserted by URL, so re-running refreshes the
 scraped fields (status/platforms/updated) while keeping the score already saved.
 
+## wplace canvas tracking (`/wplace`)
+
+A third surface at `/wplace` ("Canvas Watch") tracks pixel-art drawings pinned to
+the [wplace.live](https://wplace.live) world canvas and charts their **completion
+over time** — it's a read-only dashboard, not a drawing tool.
+
+wplace serves the canvas as a fixed grid of static PNG tiles
+(`backend.wplace.live/files/s0/tiles/{x}/{y}.png` — 2048×2048 tiles, each
+1000×1000 px). [`src/lib/wplace.ts`](src/lib/wplace.ts) fetches the tile(s) a
+drawing spans, stitches across tile boundaries, and diffs the live canvas against
+a stored **template** (your palette-quantized target image), counting each
+tracked pixel as *correct*, *wrong* (griefed), or *unpainted*. Transparent and
+`#deface` template pixels are ignored, matching the Blue Marble convention.
+
+**Register a drawing.** First quantize your image to the wplace palette (e.g.
+[wplacetool.com](https://wplacetool.com)) at exactly one image-pixel per canvas
+pixel, then pin it with the [Blue Marble](https://github.com/SwingTheVine/Wplace-BlueMarble)
+overlay to read off the top-left tile + in-tile offset:
+
+```bash
+node --env-file=.env.local scripts/wplace-add.ts \
+  --slug=kitty --title="Pixel Kitty" \
+  --tile=1100,670 --offset=512,240 --image=./kitty.png
+```
+
+Re-running with a new `--image` swaps the template but keeps the snapshot history.
+
+**Snapshots.** A Vercel Cron (`vercel.json`, every 15 min) hits
+`/api/wplace/cron`, which samples every project and records one numeric row in
+`wplace_snapshots`. The endpoint requires `Authorization: Bearer $CRON_SECRET`,
+so set `CRON_SECRET` in the environment (Vercel injects it into cron requests
+automatically). The page renders the target vs. a live diff image
+(`/api/wplace/[slug]/render?view=template|live|diff`) plus a hand-rolled SVG
+progress chart.
+
 ## Adding more storefronts
 
 Enrichment is generic (Open Graph), so new stores work with zero code. To add a

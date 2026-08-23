@@ -65,3 +65,42 @@ await sql`alter table games add column if not exists review_updated_at timestamp
 await sql`create unique index if not exists games_slug_key on games (slug)`;
 
 console.log("✅ games table ready.");
+
+// wplace pixel-art progress tracking. A `project` is one drawing pinned to the
+// canvas at a tile + in-tile offset; `template_png` is the palette-quantized
+// target image (stored inline — these are tiny). Snapshots are a pure numeric
+// time series the dashboard charts; no rendered images are persisted.
+await sql`
+  create table if not exists wplace_projects (
+    id           uuid primary key default gen_random_uuid(),
+    slug         text not null unique,
+    title        text,
+    tile_x       integer not null,
+    tile_y       integer not null,
+    offset_x     integer not null,
+    offset_y     integer not null,
+    width        integer not null,
+    height       integer not null,
+    template_png bytea not null,
+    created_at   timestamptz not null default now()
+  )
+`;
+
+await sql`
+  create table if not exists wplace_snapshots (
+    id         uuid primary key default gen_random_uuid(),
+    project_id uuid not null references wplace_projects(id) on delete cascade,
+    taken_at   timestamptz not null default now(),
+    total_px   integer not null,
+    correct_px integer not null,
+    wrong_px   integer not null,
+    missing_px integer not null,
+    percent    real not null
+  )
+`;
+await sql`
+  create index if not exists wplace_snapshots_project_time
+  on wplace_snapshots (project_id, taken_at desc)
+`;
+
+console.log("✅ wplace tables ready.");

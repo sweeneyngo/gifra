@@ -8,6 +8,7 @@ const TABS = [
   { href: "/", label: "Wishlist" },
   { href: "/music", label: "Music" },
   { href: "/games", label: "FVNs" },
+  { href: "/wplace", label: "Canvas" },
 ];
 
 export function Nav() {

@@ -9,6 +9,7 @@
     "start": "next start",
     "db:init": "node scripts/db-init.mjs",
     "games:import": "node --experimental-strip-types scripts/games-import.ts",
+    "wplace:add": "node --experimental-strip-types scripts/wplace-add.ts",
     "discord:register": "node scripts/register-command.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
