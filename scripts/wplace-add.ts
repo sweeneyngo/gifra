@@ -31,6 +31,8 @@ const image = arg("image");
 const tile = pair("tile");
 const offset = pair("offset");
 const title = arg("title") ?? null;
+const author = arg("author") ?? null;
+const source = arg("source") ?? null;
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL not set (use --env-file=.env.local).");
@@ -39,7 +41,8 @@ if (!process.env.DATABASE_URL) {
 if (!slug || !image || !tile || !offset) {
   console.error(
     "Usage: node --env-file=.env.local scripts/wplace-add.ts \\\n" +
-      '  --slug=<id> [--title="..."] --tile=<tileX,tileY> --offset=<pxX,pxY> --image=<file.png>',
+      '  --slug=<id> [--title="..."] [--author="..."] [--source=<url>] \\\n' +
+      "  --tile=<tileX,tileY> --offset=<pxX,pxY> --image=<file.png>",
   );
   process.exit(1);
 }
@@ -59,8 +62,8 @@ if (!width || !height) {
 }
 
 await sql`
-  insert into wplace_projects (slug, title, tile_x, tile_y, offset_x, offset_y, width, height, template_png)
-  values (${slug}, ${title}, ${tile[0]}, ${tile[1]}, ${offset[0]}, ${offset[1]}, ${width}, ${height}, ${png})
+  insert into wplace_projects (slug, title, tile_x, tile_y, offset_x, offset_y, width, height, author, source_url, template_png)
+  values (${slug}, ${title}, ${tile[0]}, ${tile[1]}, ${offset[0]}, ${offset[1]}, ${width}, ${height}, ${author}, ${source}, ${png})
   on conflict (slug) do update set
     title = excluded.title,
     tile_x = excluded.tile_x,
@@ -69,6 +72,8 @@ await sql`
     offset_y = excluded.offset_y,
     width = excluded.width,
     height = excluded.height,
+    author = excluded.author,
+    source_url = excluded.source_url,
     template_png = excluded.template_png
 `;
 

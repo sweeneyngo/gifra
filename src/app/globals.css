@@ -2047,3 +2047,127 @@ input[type="range"]::-moz-range-thumb {
   font-size: 0.85rem;
   margin: 0;
 }
+
+/* Intro link → amber, matching the site accent. */
+.wp-intro a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.wp-intro a:hover {
+  color: var(--accent-2);
+  border-bottom-color: var(--accent-2);
+}
+
+/* Alert banners — tinted by severity via a per-level --wp-alert hue. */
+.wp-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+}
+.wp-banner {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wp-alert) 45%, transparent);
+  border-left-width: 3px;
+  background: color-mix(in srgb, var(--wp-alert) 12%, transparent);
+  color: color-mix(in srgb, var(--wp-alert) 78%, var(--text-strong));
+}
+.wp-banner-danger {
+  --wp-alert: #e5484d;
+}
+.wp-banner-warn {
+  --wp-alert: #e0a83e;
+}
+.wp-banner-info {
+  --wp-alert: var(--accent);
+}
+.wp-banner-success {
+  --wp-alert: #46a758;
+}
+
+.wp-activity {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+.wp-activity + .wp-meta {
+  margin-top: 0;
+}
+
+/* Metadata row — coordinate link, template download, attribution. */
+.wp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: baseline;
+  padding: 0.75rem 0;
+  border-top: 1px dashed var(--line);
+  font-size: 0.85rem;
+}
+.wp-meta-item {
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+a.wp-meta-item {
+  color: var(--accent);
+}
+a.wp-meta-item:hover {
+  color: var(--accent-2);
+}
+.wp-meta-sub {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+.wp-meta-muted {
+  color: var(--muted);
+}
+
+/* Colour composition of the template. */
+.wp-colors {
+  padding: 0.75rem 0;
+  border-top: 1px dashed var(--line);
+}
+.wp-section-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+.wp-swatches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.wp-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.5rem 0.2rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.wp-swatch-chip {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex: none;
+}
+.wp-swatch-hex {
+  color: var(--muted);
+}
+.wp-swatch-count {
+  color: var(--text-strong);
+}

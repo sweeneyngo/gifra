@@ -86,6 +86,10 @@ await sql`
   )
 `;
 
+// Optional attribution / provenance, added after the fact.
+await sql`alter table wplace_projects add column if not exists author text`;
+await sql`alter table wplace_projects add column if not exists source_url text`;
+
 await sql`
   create table if not exists wplace_snapshots (
     id         uuid primary key default gen_random_uuid(),

@@ -1,6 +1,6 @@
 # Spec — wplace "Canvas Watch" (`/wplace`)
 
-**Status:** built, awaiting first pinned drawing · **Surface:** `/wplace` · **Added:** 2026-08-22
+**Status:** built + tracking (love-baba) · insight/alerts layer added · **Surface:** `/wplace` · **Added:** 2026-08-22
 
 ## 1. Summary
 
@@ -73,8 +73,13 @@ Two tables, added to `scripts/db-init.mjs` (idempotent `create table if not exis
 | `tile_x`, `tile_y` | integer | top-left pixel's tile |
 | `offset_x`, `offset_y` | integer | top-left pixel's in-tile offset (0–999) |
 | `width`, `height` | integer | template dimensions in canvas pixels |
+| `author` | text | who drew it (nullable, attribution) |
+| `source_url` | text | link to the original art/artist (nullable) |
 | `template_png` | bytea | the palette-quantized target image, stored inline |
 | `created_at` | timestamptz | |
+
+`author`/`source_url` are added via idempotent `alter table … add column if not exists`
+so the migration is safe to re-run on an existing database.
 
 `template_png` is stored **inline** because templates are tiny (pixel art, a few
 KB); no object storage needed.
@@ -128,16 +133,33 @@ Nearest-neighbour upscales (each canvas pixel → a `scale`×`scale` block) to a
 - `diff` — the live art, but tracked pixels recoloured: **red** where wrong,
   **grey** where unpainted, real colour where correct, transparent where untracked.
 
+### Derived insight (pure, unit-tested)
+All computed from the numeric snapshot series (or the stored template) — no extra
+network calls, so they're cheap enough to run on every page render:
+- `deriveAlerts(snapshots) → WplaceAlert[]` — banners by severity. **Vandalism**
+  (`danger`): wrong pixels jump ≥5 **and** ≥20% since the last check, or climb three
+  checks straight. **Overwrite** (`warn`): correct count dropped. **Standing errors**
+  (`warn`): any wrong pixels. **Milestones**: complete (`success`) / ≥99% (`info`).
+  **Stalled** (`info`): no new correct pixels across the last 3 checks. Thresholds
+  live at the top of the module (`VANDAL_ABS`, `VANDAL_REL`, `STALL_STEPS`, `NEAR_DONE`).
+- `idleSince(snapshots)` — when the canvas last changed + how many checks it's held.
+- `templateColors(project) → ColorCount[]` — the template's colour composition
+  (tracked pixels per palette colour, most-used first).
+- `canvasLatLng(project)` / `wplaceLink(project)` — invert the Web-Mercator pixel
+  projection to a WGS84 lat/lng and build a `wplace.live/?lat=&lng=&zoom=` deep link
+  to the drawing's top-left anchor.
+
 ## 7. Interfaces
 
 ### Ingest — `scripts/wplace-add.ts`
 ```
 node --env-file=.env.local scripts/wplace-add.ts \
-  --slug=kitty --title="Pixel Kitty" \
+  --slug=kitty --title="Pixel Kitty" --author="@artist" --source=https://… \
   --tile=1100,670 --offset=512,240 --image=./kitty.png
 ```
 - Reads `width`/`height` from the image itself (via `sharp`), so dimensions can't
   drift from the pixels being diffed.
+- `--author`/`--source` are optional attribution, surfaced on the dashboard.
 - Upserts by `slug` (`on conflict do update`), so re-running with a new `--image`
   swaps the template while **keeping snapshot history**.
 - Also exposed as `npm run wplace:add -- …`.
@@ -152,20 +174,26 @@ node --env-file=.env.local scripts/wplace-add.ts \
 
 ### Render — `GET /api/wplace/[slug]/render?view=live|template|diff`
 - Defaults to `live`; unknown `view` falls back to `live`.
+- `?download=1` streams the **original 1:1 template PNG** as a file attachment
+  (`Content-Disposition: attachment; filename="<slug>.png"`), for re-pinning/re-import.
 - 404 if the slug or template is missing.
-- `Cache-Control`: `template` 1h, `live`/`diff` 60s (polite + snappy).
+- `Cache-Control`: `template`/download 1h, `live`/`diff` 60s (polite + snappy).
 
 ### Page — `GET /wplace`
 - Server component, `dynamic = "force-dynamic"`.
 - Lists projects with their snapshot history. Per project: title/dimensions/tile +
-  "updated Nm ago", headline %, target + diff `<img>` renders, stat row, and the
-  SVG chart.
+  "updated Nm ago", headline %, **alert banners** (`deriveAlerts`), target + diff
+  `<img>` renders, stat row (correct/wrong/remaining/total), an **activity line**
+  (pixels left + idle time from `idleSince`), a **metadata row** (deep link to the
+  anchor on wplace via `wplaceLink`, template download, author/source, added date),
+  a **colour breakdown** (`templateColors`), and the SVG chart.
 - Empty state points at the `wplace-add.ts` command.
 - `ProgressChart.tsx` is a pure server-rendered SVG line+area chart (fixed Y 0–100%
   so projects are comparable; X spans first→last snapshot). Hand-rolled — no chart
   dependency, matching the music-waveform approach. Needs ≥2 snapshots to draw.
 - Adds a **Canvas** tab to the shared nav; styles appended to `globals.css`
-  (`.wp-*`), using existing theme variables.
+  (`.wp-*`), using existing theme variables (banners tint by severity; the intro
+  link and metadata links use the amber accent).
 
 ## 8. Data flow (end to end)
 
@@ -192,12 +220,15 @@ node --env-file=.env.local scripts/wplace-add.ts \
 
 ## 10. Testing
 
-`src/lib/wplace.test.ts` (Vitest) covers the pure diff accounting against fixtures:
-fully-painted = 100%; correct/wrong/missing classification; ignore transparent +
-`#deface`; and the `total = 0 → 0%` (no-NaN) guard. Network/`sharp` paths are left
-to integration (they're thin wrappers over well-tested libraries).
+`src/lib/wplace.test.ts` (Vitest) covers the pure logic against fixtures: diff
+accounting (fully-painted = 100%; correct/wrong/missing classification; ignore
+transparent + `#deface`; `total = 0 → 0%` no-NaN guard); `deriveAlerts` (vandalism
+jump + sustained climb, overwrite, completion, stalled, and non-triggers);
+`idleSince` step counting; and `canvasLatLng`/`wplaceLink` against known
+Web-Mercator reference points. Network/`sharp` paths are left to integration
+(they're thin wrappers over well-tested libraries).
 
-Repo checks all pass: `tsc --noEmit`, `vitest run` (68 tests), `next build`.
+Repo checks all pass: `tsc --noEmit`, `vitest run` (81 tests), `next build`.
 
 ## 11. Configuration
 
@@ -206,12 +237,16 @@ Repo checks all pass: `tsc --noEmit`, `vitest run` (68 tests), `next build`.
 | `DATABASE_URL` | Neon Postgres (already present) |
 | `CRON_SECRET` | Bearer secret for `/api/wplace/cron`; unset ⇒ endpoint returns 503 |
 
-Migration: `node --env-file=.env.local scripts/db-init.mjs` (adds the two tables).
+Migration: `node --env-file=.env.local scripts/db-init.mjs` (creates the two tables
+and adds the `author`/`source_url` columns; idempotent).
 
 ## 12. Future work
 
-- Store & display per-color breakdowns (which palette colours are most griefed).
-- Alerting (Discord ping) when `wrong_px` spikes.
+- **Off-app alerting** (e.g. Discord ping) when `deriveAlerts` raises a `danger`
+  banner — the in-app banners exist; this would push them out.
+- Per-*colour* live breakdown (correct/wrong/missing per palette colour), not just
+  the template's colour composition — needs the live region, so compute at snapshot
+  time and store as JSON rather than on every page load.
 - Per-project detail page with a longer/zoomable history and a live-refresh toggle.
 - Admin UI to add/retire projects (currently CLI-only).
 - Downsample/prune very old snapshots if the series grows large.
@@ -221,7 +256,7 @@ Migration: `node --env-file=.env.local scripts/db-init.mjs` (adds the two tables
 
 | Path | Role |
 |---|---|
-| `src/lib/wplace.ts` | tile fetch/stitch, diff, snapshot, render |
+| `src/lib/wplace.ts` | tile fetch/stitch, diff, snapshot, render, alerts, colours, geo link |
 | `src/lib/wplace.test.ts` | diff-math unit tests |
 | `scripts/db-init.mjs` | schema (two new tables) |
 | `scripts/wplace-add.ts` | ingest CLI (`npm run wplace:add`) |

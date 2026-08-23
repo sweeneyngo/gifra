@@ -28,6 +28,8 @@ export interface WplaceProject {
   offset_y: number;
   width: number;
   height: number;
+  author: string | null;
+  source_url: string | null;
   created_at: string;
 }
 
@@ -188,7 +190,7 @@ export async function templateToRaw(
 
 export async function listProjects(): Promise<WplaceProject[]> {
   return (await sql`
-    select id, slug, title, tile_x, tile_y, offset_x, offset_y, width, height, created_at
+    select id, slug, title, tile_x, tile_y, offset_x, offset_y, width, height, author, source_url, created_at
     from wplace_projects
     order by created_at
   `) as WplaceProject[];
@@ -198,13 +200,13 @@ export async function getProjectBySlug(
   slug: string,
 ): Promise<WplaceProject | null> {
   const rows = (await sql`
-    select id, slug, title, tile_x, tile_y, offset_x, offset_y, width, height, created_at
+    select id, slug, title, tile_x, tile_y, offset_x, offset_y, width, height, author, source_url, created_at
     from wplace_projects where slug = ${slug}
   `) as WplaceProject[];
   return rows[0] ?? null;
 }
 
-async function getTemplatePng(id: string): Promise<Buffer | null> {
+export async function getTemplatePng(id: string): Promise<Buffer | null> {
   const rows = (await sql`
     select template_png from wplace_projects where id = ${id}
   `) as { template_png: Buffer }[];
@@ -322,4 +324,176 @@ export async function takeSnapshot(
     values (${project.id}, ${diff.total}, ${diff.correct}, ${diff.wrong}, ${diff.missing}, ${diff.percent})
   `;
   return diff;
+}
+
+// ── geo: canvas coords → a deep link into wplace.live ────────────────────────
+
+/**
+ * Convert a project's top-left anchor (tile + in-tile offset) to WGS84
+ * lat/lng. The wplace canvas is a Web-Mercator projection tiled `GRID×GRID`
+ * with `TILE` painted pixels per tile, so the whole world is `GRID*TILE` pixels
+ * across. This is the inverse of the standard slippy-map pixel projection.
+ */
+export function canvasLatLng(project: {
+  tile_x: number;
+  tile_y: number;
+  offset_x: number;
+  offset_y: number;
+}): { lat: number; lng: number } {
+  const mapSize = GRID * TILE;
+  const gx = project.tile_x * TILE + project.offset_x;
+  const gy = project.tile_y * TILE + project.offset_y;
+  const lng = (gx / mapSize) * 360 - 180;
+  const n = Math.PI - 2 * Math.PI * (gy / mapSize);
+  const lat = (180 / Math.PI) * Math.atan(Math.sinh(n));
+  return { lat, lng };
+}
+
+/** A shareable wplace.live URL centred on the project's top-left anchor. */
+export function wplaceLink(
+  project: { tile_x: number; tile_y: number; offset_x: number; offset_y: number },
+  zoom = 14,
+): string {
+  const { lat, lng } = canvasLatLng(project);
+  return `https://wplace.live/?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}&zoom=${zoom}`;
+}
+
+// ── colour composition of a template ─────────────────────────────────────────
+
+export interface ColorCount {
+  hex: string; // "#rrggbb"
+  count: number; // tracked template pixels of this colour
+}
+
+const toHex = (r: number, g: number, b: number) =>
+  "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");
+
+/**
+ * Break a project's template down by colour: how many tracked pixels each
+ * palette colour occupies, most-used first. Network-free (decodes the stored
+ * template only), so it's cheap enough to run on every page render.
+ */
+export async function templateColors(project: WplaceProject): Promise<ColorCount[]> {
+  const png = await getTemplatePng(project.id);
+  if (!png) return [];
+  const { data, width, height } = await templateToRaw(png);
+  const counts = new Map<string, number>();
+  for (let i = 0; i < width * height; i++) {
+    const o = i * 4;
+    if (data[o + 3] < 128) continue; // transparent → untracked
+    if (data[o] === IGNORE.r && data[o + 1] === IGNORE.g && data[o + 2] === IGNORE.b)
+      continue;
+    const hex = toHex(data[o], data[o + 1], data[o + 2]);
+    counts.set(hex, (counts.get(hex) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([hex, count]) => ({ hex, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// ── alerts: derive banners from the snapshot history ─────────────────────────
+
+export type AlertLevel = "success" | "info" | "warn" | "danger";
+export interface WplaceAlert {
+  level: AlertLevel;
+  message: string;
+}
+
+// Tuned by feel — wplace tiles refresh on a delay and we sample every ~15 min,
+// so one "step" below is roughly a quarter-hour.
+const VANDAL_ABS = 5; // min extra wrong pixels for a jump to register
+const VANDAL_REL = 1.2; // …and it must be ≥20% more than before
+const STALL_STEPS = 3; // no progress across this many checks ⇒ "stalled"
+const NEAR_DONE = 99; // percent
+
+/**
+ * Turn a project's snapshot series into zero or more banners. Pure, so it's
+ * unit-testable. Ordered most- to least-urgent; the page shows them in order.
+ */
+export function deriveAlerts(snaps: WplaceSnapshot[]): WplaceAlert[] {
+  const alerts: WplaceAlert[] = [];
+  if (snaps.length === 0) return alerts;
+  const latest = snaps[snaps.length - 1];
+  const prev = snaps[snaps.length - 2];
+
+  const done = latest.total_px > 0 && latest.correct_px === latest.total_px;
+
+  // Vandalism — a sharp jump in wrong pixels since the last check…
+  let flaggedVandalism = false;
+  if (prev && latest.wrong_px - prev.wrong_px >= VANDAL_ABS &&
+      latest.wrong_px >= Math.max(1, prev.wrong_px) * VANDAL_REL) {
+    flaggedVandalism = true;
+    alerts.push({
+      level: "danger",
+      message: `Possible vandalism — wrong pixels jumped +${latest.wrong_px - prev.wrong_px} since the last check (${prev.wrong_px} → ${latest.wrong_px}).`,
+    });
+  }
+  // …or a sustained climb across three checks in a row.
+  if (!flaggedVandalism && snaps.length >= 3) {
+    const [a, b, c] = snaps.slice(-3);
+    if (a.wrong_px < b.wrong_px && b.wrong_px < c.wrong_px && c.wrong_px - a.wrong_px >= VANDAL_ABS) {
+      alerts.push({
+        level: "danger",
+        message: `Wrong pixels rising three checks straight (${a.wrong_px} → ${b.wrong_px} → ${c.wrong_px}) — likely active griefing.`,
+      });
+    }
+  }
+
+  // Correct pixels were overwritten (someone painted over finished work).
+  if (prev && latest.correct_px < prev.correct_px) {
+    const drop = prev.correct_px - latest.correct_px;
+    alerts.push({
+      level: "warn",
+      message: `${drop} correct pixel${drop === 1 ? "" : "s"} overwritten since the last check.`,
+    });
+  }
+
+  // Standing errors on the canvas (independent of whether they're rising).
+  if (!done && latest.wrong_px > 0) {
+    alerts.push({
+      level: "warn",
+      message: `${latest.wrong_px} wrong pixel${latest.wrong_px === 1 ? "" : "s"} currently off-template.`,
+    });
+  }
+
+  // Milestones.
+  if (done) {
+    alerts.push({ level: "success", message: "Complete — every tracked pixel matches the template. 🎉" });
+  } else if (latest.percent >= NEAR_DONE) {
+    alerts.push({
+      level: "info",
+      message: `Almost there — ${latest.percent.toFixed(1)}% done, ${latest.missing_px} pixel${latest.missing_px === 1 ? "" : "s"} left.`,
+    });
+  }
+
+  // Stalled — no new correct pixels across the last few checks while unfinished.
+  if (!done && snaps.length > STALL_STEPS) {
+    const window = snaps.slice(-(STALL_STEPS + 1));
+    if (window.every((s) => s.correct_px === latest.correct_px) && latest.percent < NEAR_DONE) {
+      alerts.push({
+        level: "info",
+        message: `Progress stalled — no new pixels across the last ${STALL_STEPS} checks.`,
+      });
+    }
+  }
+
+  return alerts;
+}
+
+/**
+ * When the canvas last changed (correct or wrong count moved). Returns the ISO
+ * time of the first snapshot at the current state, plus how many consecutive
+ * checks have shown no change. Null if there isn't enough history to tell.
+ */
+export function idleSince(
+  snaps: WplaceSnapshot[],
+): { since: string; steps: number } | null {
+  if (snaps.length < 2) return null;
+  const latest = snaps[snaps.length - 1];
+  for (let i = snaps.length - 2; i >= 0; i--) {
+    if (snaps[i].correct_px !== latest.correct_px || snaps[i].wrong_px !== latest.wrong_px) {
+      return { since: snaps[i + 1].taken_at, steps: snaps.length - 1 - i };
+    }
+  }
+  return { since: snaps[0].taken_at, steps: snaps.length - 1 };
 }
