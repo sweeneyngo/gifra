@@ -1,0 +1,37 @@
+name: wplace canvas snapshot
+
+# Vercel Hobby caps its own cron at once/day, so the 15-minute sampling that
+# powers Canvas Watch runs here instead. This just pings the app's cron endpoint,
+# which does the actual tile fetch + diff + snapshot insert. The daily Vercel
+# cron in vercel.json stays as a fallback (e.g. if GitHub disables this schedule
+# after long repo inactivity).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Don't stack runs if one is slow; a missed sample is fine.
+concurrency:
+  group: wplace-cron
+  cancel-in-progress: false
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger snapshot
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://www.gifra.me' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set."
+            exit 1
+          fi
+          body=$(mktemp)
+          code=$(curl -sS -o "$body" -w '%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/wplace/cron")
+          echo "HTTP $code"
+          cat "$body"; echo
+          test "$code" = "200"

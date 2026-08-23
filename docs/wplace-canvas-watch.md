@@ -169,8 +169,12 @@ node --env-file=.env.local scripts/wplace-add.ts \
   is unset, **401** on mismatch.
 - Iterates all projects, calls `takeSnapshot` for each; one project's failure is
   caught and reported without sinking the others.
-- Scheduled by `vercel.json` → `*/15 * * * *`. `maxDuration = 60`.
-- Returns `{ ok, count, results: [{ slug, percent | error }] }`.
+- Returns `{ ok, count, results: [{ slug, percent | error }] }`. `maxDuration = 60`.
+- **Scheduling:** the 15-minute cadence runs from a GitHub Actions workflow
+  (`.github/workflows/wplace-cron.yml`) that pings this endpoint, because Vercel
+  **Hobby** caps its own cron at once/day. `vercel.json` keeps a daily cron as a
+  fallback. The Action needs a `CRON_SECRET` repo secret matching the value set in
+  Vercel (optionally an `APP_URL` repo variable; defaults to `https://www.gifra.me`).
 
 ### Render — `GET /api/wplace/[slug]/render?view=live|template|diff`
 - Defaults to `live`; unknown `view` falls back to `live`.
@@ -266,4 +270,5 @@ and adds the `author`/`source_url` columns; idempotent).
 | `src/app/wplace/ProgressChart.tsx` | SVG chart |
 | `src/app/Nav.tsx` | Canvas nav tab |
 | `src/app/globals.css` | `.wp-*` styles |
-| `vercel.json` | cron schedule |
+| `vercel.json` | daily cron fallback (Hobby limit) |
+| `.github/workflows/wplace-cron.yml` | 15-min sampler (pings the cron endpoint) |
