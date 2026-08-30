@@ -265,6 +265,143 @@ export async function deleteGame(id: string): Promise<void> {
   await sql`delete from games where id = ${id}`;
 }
 
+// ---- AniList anime surface ----
+
+// Personal watch-status. `planned` anime are usually unrated.
+export type WatchStatus =
+  | "watching"
+  | "completed"
+  | "paused"
+  | "dropped"
+  | "planned";
+
+export interface Anime {
+  id: string;
+  url: string; // AniList siteUrl (unique key)
+  title: string | null;
+  image_url: string | null; // portrait cover (AniList extraLarge)
+  score: number | null; // personal score, owner-set; null if unrated
+  status: string | null; // personal watch-status (WatchStatus)
+  recommended: boolean; // owner-flagged pick
+  format: string | null; // AniList format, e.g. "TV", "Movie", "OVA"
+  episodes: number | null;
+  season_year: number | null;
+  average_score: number | null; // AniList community average (0–100)
+  genres: string | null; // comma-joined, e.g. "Action, Drama"
+  cover_color: string | null; // AniList dominant cover color (hex)
+  created_at: string;
+  focal_x: number;
+  focal_y: number;
+}
+
+export async function listAnime(): Promise<Anime[]> {
+  // Highest personal score first (unrated — mostly planned — sink to the
+  // bottom), then alphabetical by title.
+  return (await sql`
+    select id, url, title, image_url, score, status, recommended, format,
+           episodes, season_year, average_score, genres, cover_color,
+           created_at, focal_x, focal_y
+    from anime
+    order by score desc nulls last, title asc nulls last
+  `) as Anime[];
+}
+
+/**
+ * Insert or refresh an anime by URL. The personal `score`/`status` are only
+ * written when supplied, so re-enriching never clobbers owner data.
+ */
+export async function upsertAnime(fields: {
+  url: string;
+  title: string | null;
+  image_url: string | null;
+  score: number | null;
+  status: string | null;
+  recommended?: boolean;
+  format: string | null;
+  episodes: number | null;
+  season_year: number | null;
+  average_score: number | null;
+  genres: string | null;
+  cover_color: string | null;
+  focal_x?: number;
+  focal_y?: number;
+}): Promise<Anime> {
+  const rows = (await sql`
+    insert into anime
+      (url, title, image_url, score, status, recommended, format, episodes,
+       season_year, average_score, genres, cover_color, focal_x, focal_y)
+    values
+      (${fields.url}, ${fields.title}, ${fields.image_url}, ${fields.score},
+       ${fields.status}, ${fields.recommended ?? false}, ${fields.format},
+       ${fields.episodes}, ${fields.season_year}, ${fields.average_score},
+       ${fields.genres}, ${fields.cover_color},
+       ${fields.focal_x ?? 50}, ${fields.focal_y ?? 50})
+    on conflict (url) do update set
+      title         = excluded.title,
+      image_url     = excluded.image_url,
+      score         = coalesce(excluded.score, anime.score),
+      status        = coalesce(excluded.status, anime.status),
+      recommended   = excluded.recommended,
+      format        = excluded.format,
+      episodes      = excluded.episodes,
+      season_year   = excluded.season_year,
+      average_score = excluded.average_score,
+      genres        = excluded.genres,
+      cover_color   = excluded.cover_color,
+      focal_x       = excluded.focal_x,
+      focal_y       = excluded.focal_y
+    returning id, url, title, image_url, score, status, recommended, format,
+              episodes, season_year, average_score, genres, cover_color,
+              created_at, focal_x, focal_y
+  `) as Anime[];
+  return rows[0];
+}
+
+/** Update just the owner-set fields (admin edit), leaving scraped data intact. */
+export async function updateAnimeOwner(
+  id: string,
+  fields: { score: number | null; status: string | null; recommended: boolean },
+): Promise<void> {
+  await sql`
+    update anime
+    set score = ${fields.score},
+        status = ${fields.status},
+        recommended = ${fields.recommended}
+    where id = ${id}
+  `;
+}
+
+/** Refresh just the scraped fields (admin re-enrich), leaving owner data intact. */
+export async function updateAnimeScraped(
+  id: string,
+  fields: {
+    title: string | null;
+    image_url: string | null;
+    format: string | null;
+    episodes: number | null;
+    season_year: number | null;
+    average_score: number | null;
+    genres: string | null;
+    cover_color: string | null;
+    focal_x: number;
+    focal_y: number;
+  },
+): Promise<void> {
+  await sql`
+    update anime
+    set title = ${fields.title}, image_url = ${fields.image_url},
+        format = ${fields.format}, episodes = ${fields.episodes},
+        season_year = ${fields.season_year}, average_score = ${fields.average_score},
+        genres = ${fields.genres}, cover_color = ${fields.cover_color},
+        focal_x = ${fields.focal_x}, focal_y = ${fields.focal_y}
+    where id = ${id}
+  `;
+}
+
+export async function deleteAnime(id: string): Promise<void> {
+  await sql`delete from anime where id = ${id}`;
+}
+
 /** Fuzzy-find items by title / store / url for the owner manage commands. */
 export async function findItemsByQuery(
   query: string,

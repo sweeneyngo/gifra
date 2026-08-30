@@ -8,6 +8,7 @@ const TABS = [
   { href: "/", label: "Wishlist" },
   { href: "/music", label: "Music" },
   { href: "/games", label: "FVNs" },
+  { href: "/anime", label: "Anime" },
   { href: "/wplace", label: "Canvas" },
 ];
 

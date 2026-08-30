@@ -66,6 +66,32 @@ await sql`create unique index if not exists games_slug_key on games (slug)`;
 
 console.log("✅ games table ready.");
 
+// AniList anime surface: personal `score` and watch `status` are owner-set; the
+// rest (cover, format, episodes, season, community average, genres) come from
+// the AniList GraphQL API. Mirrors the `games` shape, minus itch/review fields.
+await sql`
+  create table if not exists anime (
+    id            uuid primary key default gen_random_uuid(),
+    url           text not null unique,
+    title         text,
+    image_url     text,
+    score         real,
+    status        text,
+    recommended   boolean not null default false,
+    format        text,
+    episodes      integer,
+    season_year   integer,
+    average_score integer,
+    genres        text,
+    cover_color   text,
+    created_at    timestamptz not null default now(),
+    focal_x       real not null default 50,
+    focal_y       real not null default 50
+  )
+`;
+
+console.log("✅ anime table ready.");
+
 // wplace pixel-art progress tracking. A `project` is one drawing pinned to the
 // canvas at a tile + in-tile offset; `template_png` is the palette-quantized
 // target image (stored inline — these are tiny). Snapshots are a pure numeric

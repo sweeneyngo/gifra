@@ -914,6 +914,27 @@ body::after {
 .play-status.is-planned {
   color: var(--muted);
 }
+/* Anime watch-statuses reuse the shared chip; add the two new states. */
+.play-status.is-watching {
+  color: var(--accent-2);
+}
+.play-status.is-paused {
+  color: #c9a86b;
+}
+
+/* ---------- Anime surface ---------- */
+/* Letterboxd-style portrait posters: denser columns and a 2:3 cover. */
+.grid-poster {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+.thumb-poster {
+  aspect-ratio: 2 / 3;
+}
+/* Portrait thumbnail in the list view. */
+.row-thumb-poster {
+  width: 34px;
+  height: 48px;
+}
 
 /* ---------- Modal ---------- */
 .modal-backdrop {
