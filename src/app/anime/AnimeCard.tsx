@@ -10,6 +10,9 @@ import { scoreColor, STATUS_LABEL, formatMeta, StarIcon } from "./marks";
 
 export type EditTarget = Anime | "new";
 
+// Optional "set as group cover" control, shown on member cards on a group page.
+export type CoverControl = { active: boolean; onToggle: () => void };
+
 // The recommended marker shown beside an anime's title.
 export function NameMarks({ anime }: { anime: Anime }) {
   return anime.recommended ? (
@@ -19,14 +22,41 @@ export function NameMarks({ anime }: { anime: Anime }) {
   ) : null;
 }
 
+const ImageIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="9" cy="9" r="1.6" />
+    <path d="m21 15-4.5-4.5L5 21" />
+  </svg>
+);
+
+// Toggle for making this anime the group's cover. Filled/accent when active.
+function CoverButton({ active, onToggle }: CoverControl) {
+  return (
+    <button
+      type="button"
+      className={`cover-btn${active ? " active" : ""}`}
+      onClick={onToggle}
+      aria-pressed={active}
+      aria-label={active ? "Group cover (click to reset)" : "Set as group cover"}
+      title={active ? "Group cover — click to reset to first-added" : "Set as group cover"}
+    >
+      <ImageIcon />
+    </button>
+  );
+}
+
 export function AnimeGridCard({
   anime,
   admin,
   onEdit,
+  cover,
 }: {
   anime: Anime;
   admin: boolean;
   onEdit: (t: EditTarget) => void;
+  cover?: CoverControl;
 }) {
   return (
     <div className="card">
@@ -53,6 +83,7 @@ export function AnimeGridCard({
             {anime.title ?? anime.url}
           </a>
           <NameMarks anime={anime} />
+          {cover && <CoverButton {...cover} />}
           {admin && <EditButton onClick={() => onEdit(anime)} />}
         </div>
 
@@ -81,10 +112,12 @@ export function AnimeListRow({
   anime,
   admin,
   onEdit,
+  cover,
 }: {
   anime: Anime;
   admin: boolean;
   onEdit: (t: EditTarget) => void;
+  cover?: CoverControl;
 }) {
   const content = (
     <a href={anime.url} target="_blank" rel="noreferrer" className="game-row-link">
@@ -111,6 +144,7 @@ export function AnimeListRow({
   return (
     <div className="game-row">
       {content}
+      {cover && <CoverButton {...cover} />}
       {admin && <EditButton onClick={() => onEdit(anime)} />}
     </div>
   );

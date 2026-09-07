@@ -11,9 +11,6 @@ export function GroupEditor({ group, onClose }: Props) {
   const existing = isNew ? null : group;
 
   const [name, setName] = useState(existing?.name ?? "");
-  const [score, setScore] = useState(
-    existing?.score != null ? String(existing.score) : "",
-  );
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -41,12 +38,7 @@ export function GroupEditor({ group, onClose }: Props) {
       setError("Enter a group name.");
       return;
     }
-    const s = score.trim() === "" ? null : Number(score);
-    if (s != null && (Number.isNaN(s) || s < 0 || s > 10)) {
-      setError("Score must be between 0 and 10.");
-      return;
-    }
-    const fields = { name: name.trim(), score: s };
+    const fields = { name: name.trim() };
     run(() =>
       isNew ? addAnimeGroup(fields) : editAnimeGroup(existing!.id, fields),
     );
@@ -78,22 +70,11 @@ export function GroupEditor({ group, onClose }: Props) {
             />
           </label>
 
-          <label className="editor-field">
-            <span>Score (0–10)</span>
-            <input
-              type="number"
-              min={0}
-              max={10}
-              step={0.5}
-              value={score}
-              onChange={(e) => setScore(e.target.value)}
-              placeholder="—"
-            />
-          </label>
-
           <p className="editor-hint">
-            Add anime to this group from each title&rsquo;s edit dialog. Deleting a
-            group keeps its anime — they return to the grid on their own.
+            The group&rsquo;s score is the average of its members (rounded down).
+            Add anime from each title&rsquo;s edit dialog, and pick the cover from
+            the group&rsquo;s page. Deleting a group keeps its anime — they return
+            to the grid on their own.
           </p>
 
           {error && <p className="login-error">{error}</p>}

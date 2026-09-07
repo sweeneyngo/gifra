@@ -57,7 +57,13 @@ export default async function GroupPage({
 
       <div className="hline" />
 
-      <GroupDetail members={members} groups={groupOptions} admin={admin} />
+      <GroupDetail
+        groupId={group.id}
+        coverAnimeId={group.cover_anime_id}
+        members={members}
+        groups={groupOptions}
+        admin={admin}
+      />
 
       <footer className="footer">
         <div className="footer-row">

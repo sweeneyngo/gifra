@@ -411,22 +411,23 @@ export async function deleteAnime(id: string): Promise<void> {
 
 // ---- Anime groups ----
 
-/** A group's own row (owner-set name + separate score). */
+/** A group's own row. `score` is the floor of its members' average score. */
 export interface AnimeGroup {
   id: string;
   slug: string;
   name: string;
-  score: number | null;
+  score: number | null; // floor(avg(member scores)); null if no member is rated
+  cover_anime_id: string | null; // owner-chosen cover member; null = first-added
   created_at: string;
 }
 
-/** A group as it appears on the grid: its score plus the first member's cover. */
+/** A group as it appears on the grid: averaged score + chosen/first cover. */
 export interface AnimeGroupCard {
   id: string;
   slug: string;
   name: string;
-  score: number | null;
-  cover_url: string | null; // first-added member's poster
+  score: number | null; // floor(avg(member scores))
+  cover_url: string | null; // chosen member's poster, else first-added
   cover_color: string | null;
   member_count: number;
   format: string | null; // most common format among members (e.g. "TV")
@@ -457,19 +458,31 @@ export function buildAnimeGrid(
 
 /** For the main grid: every group with member count and representative cover. */
 export async function listAnimeGroupCards(): Promise<AnimeGroupCard[]> {
+  // Score is the floor of members' average; cover prefers the chosen member and
+  // falls back to the first-added. Final grid order comes from buildAnimeGrid.
   return (await sql`
-    select g.id, g.slug, g.name, g.score,
+    select g.id, g.slug, g.name,
+           (select floor(avg(a.score))::int from anime a
+              where a.group_id = g.id and a.score is not null) as score,
            (select count(*)::int from anime a where a.group_id = g.id) as member_count,
-           (select a.image_url from anime a where a.group_id = g.id
-              order by a.created_at asc limit 1) as cover_url,
-           (select a.cover_color from anime a where a.group_id = g.id
-              order by a.created_at asc limit 1) as cover_color,
+           coalesce(
+             (select a.image_url from anime a
+                where a.id = g.cover_anime_id and a.group_id = g.id),
+             (select a.image_url from anime a where a.group_id = g.id
+                order by a.created_at asc limit 1)
+           ) as cover_url,
+           coalesce(
+             (select a.cover_color from anime a
+                where a.id = g.cover_anime_id and a.group_id = g.id),
+             (select a.cover_color from anime a where a.group_id = g.id
+                order by a.created_at asc limit 1)
+           ) as cover_color,
            (select mode() within group (order by a.format)
               from anime a where a.group_id = g.id and a.format is not null) as format,
            (select min(a.season_year) from anime a where a.group_id = g.id) as min_year,
            (select max(a.season_year) from anime a where a.group_id = g.id) as max_year
     from anime_groups g
-    order by g.score desc nulls last, g.name asc
+    order by g.name asc
   `) as AnimeGroupCard[];
 }
 
@@ -487,7 +500,11 @@ export async function getAnimeGroupBySlug(
   slug: string,
 ): Promise<{ group: AnimeGroup; members: Anime[] } | null> {
   const groups = (await sql`
-    select id, slug, name, score, created_at from anime_groups where slug = ${slug}
+    select g.id, g.slug, g.name, g.cover_anime_id, g.created_at,
+           (select floor(avg(a.score))::int from anime a
+              where a.group_id = g.id and a.score is not null) as score
+    from anime_groups g
+    where g.slug = ${slug}
   `) as AnimeGroup[];
   const group = groups[0];
   if (!group) return null;
@@ -512,24 +529,29 @@ export async function animeGroupSlugExists(slug: string): Promise<boolean> {
 export async function insertAnimeGroup(fields: {
   slug: string;
   name: string;
-  score: number | null;
 }): Promise<AnimeGroup> {
   const rows = (await sql`
-    insert into anime_groups (slug, name, score)
-    values (${fields.slug}, ${fields.name}, ${fields.score})
-    returning id, slug, name, score, created_at
+    insert into anime_groups (slug, name)
+    values (${fields.slug}, ${fields.name})
+    returning id, slug, name, score, cover_anime_id, created_at
   `) as AnimeGroup[];
   return rows[0];
 }
 
 export async function updateAnimeGroup(
   id: string,
-  fields: { name: string; score: number | null },
+  fields: { name: string },
+): Promise<void> {
+  await sql`update anime_groups set name = ${fields.name} where id = ${id}`;
+}
+
+/** Choose which member's poster represents the group (null = first-added). */
+export async function setAnimeGroupCover(
+  groupId: string,
+  animeId: string | null,
 ): Promise<void> {
   await sql`
-    update anime_groups
-    set name = ${fields.name}, score = ${fields.score}
-    where id = ${id}
+    update anime_groups set cover_anime_id = ${animeId} where id = ${groupId}
   `;
 }
 

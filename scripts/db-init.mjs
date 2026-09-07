@@ -108,6 +108,12 @@ await sql`
     references anime_groups(id) on delete set null
 `;
 await sql`create index if not exists anime_group_id_idx on anime (group_id)`;
+// Owner-chosen cover: which member's poster represents the group. Null falls
+// back to the first-added member. `set null` if that anime is deleted/removed.
+await sql`
+  alter table anime_groups add column if not exists cover_anime_id uuid
+    references anime(id) on delete set null
+`;
 
 console.log("✅ anime table ready.");
 

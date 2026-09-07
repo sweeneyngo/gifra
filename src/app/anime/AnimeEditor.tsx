@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { Anime } from "@/lib/db";
 import { STATUS_LABEL } from "./marks";
-import { addAnime, updateAnime, reenrichAnime, removeAnime } from "./actions";
+import {
+  addAnime,
+  updateAnime,
+  reenrichAnime,
+  removeAnime,
+  type ActionResult,
+} from "./actions";
 
 const STATUS_OPTIONS = ["watching", "completed", "paused", "dropped", "planned"];
 
@@ -42,12 +48,16 @@ export function AnimeEditor({ anime, groups, onClose }: Props) {
     group_id: groupId || null,
   });
 
-  // Run an action, surfacing any thrown error and closing on success.
-  const run = (fn: () => Promise<void>, closeOnDone = true) =>
+  // Run an action, surfacing a returned or thrown error and closing on success.
+  const run = (fn: () => Promise<ActionResult>, closeOnDone = true) =>
     start(async () => {
       setError(null);
       try {
-        await fn();
+        const res = await fn();
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
         if (closeOnDone) onClose();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

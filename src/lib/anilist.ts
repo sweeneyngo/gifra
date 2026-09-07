@@ -49,24 +49,44 @@ function anilistId(input: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/**
+ * Thrown when AniList itself can't be reached or refuses the request (network
+ * error, timeout, or a non-OK status like their 403 "temporarily disabled").
+ * Distinct from a successful response that simply has no match, so callers can
+ * tell "the API is down" apart from "no such anime". The message is user-facing.
+ */
+export class AniListUnavailableError extends Error {
+  constructor() {
+    super("AniList is currently unavailable. Please try again in a bit.");
+    this.name = "AniListUnavailableError";
+  }
+}
+
 async function query(q: string, variables: Record<string, unknown>): Promise<AniListMedia | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
+  let res: Response;
   try {
-    const res = await fetch(ENDPOINT, {
+    res = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ query: q, variables }),
       signal: controller.signal,
     });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { data?: { Media?: AniListMedia | null } };
-    return json.data?.Media ?? null;
   } catch {
-    return null;
+    throw new AniListUnavailableError(); // network failure or timeout/abort
   } finally {
     clearTimeout(timeout);
   }
+  // A non-OK status (403/429/5xx) means the API is down, not "no match".
+  if (!res.ok) throw new AniListUnavailableError();
+  let json: { data?: { Media?: AniListMedia | null } };
+  try {
+    json = (await res.json()) as { data?: { Media?: AniListMedia | null } };
+  } catch {
+    throw new AniListUnavailableError();
+  }
+  return json.data?.Media ?? null; // OK response — null here means genuine no-match
 }
 
 /**

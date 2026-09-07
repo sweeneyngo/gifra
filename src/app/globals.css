@@ -683,6 +683,35 @@ body::after {
 .name-row .edit-btn {
   margin-left: auto;
 }
+
+/* "Set as group cover" toggle on member cards (group detail page). Mirrors
+   .edit-btn; accent-outlined when this member is the active cover. */
+.cover-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.cover-btn:hover {
+  color: var(--text-strong);
+  background: var(--card-hover);
+}
+.cover-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+/* When both controls trail the name, this auto margin packs them together right. */
+.name-row .cover-btn {
+  margin-left: auto;
+}
 /* The list link lays out as flex items of .game-row so the pencil sits beside. */
 .game-row-link {
   display: contents;
@@ -969,10 +998,13 @@ body::after {
 }
 
 /* Group detail page: back link + title/score header. */
-.back-link {
+/* Scoped to .page-head so it out-specifies `.page-head .eyebrow`'s uppercase. */
+.page-head .back-link {
   text-decoration: none;
+  text-transform: none; /* sentence case */
+  letter-spacing: normal;
 }
-.back-link:hover {
+.page-head .back-link:hover {
   color: var(--accent);
 }
 .group-head {
