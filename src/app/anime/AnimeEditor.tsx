@@ -7,9 +7,13 @@ import { addAnime, updateAnime, reenrichAnime, removeAnime } from "./actions";
 
 const STATUS_OPTIONS = ["watching", "completed", "paused", "dropped", "planned"];
 
-type Props = { anime: Anime | "new"; onClose: () => void };
+type Props = {
+  anime: Anime | "new";
+  groups: { id: string; name: string }[];
+  onClose: () => void;
+};
 
-export function AnimeEditor({ anime, onClose }: Props) {
+export function AnimeEditor({ anime, groups, onClose }: Props) {
   const isNew = anime === "new";
   const existing = isNew ? null : anime;
 
@@ -19,6 +23,7 @@ export function AnimeEditor({ anime, onClose }: Props) {
   );
   const [status, setStatus] = useState(existing?.status ?? "");
   const [recommended, setRecommended] = useState(existing?.recommended ?? false);
+  const [groupId, setGroupId] = useState(existing?.group_id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -34,6 +39,7 @@ export function AnimeEditor({ anime, onClose }: Props) {
     score: score.trim() === "" ? null : Number(score),
     status: status || null,
     recommended,
+    group_id: groupId || null,
   });
 
   // Run an action, surfacing any thrown error and closing on success.
@@ -130,6 +136,20 @@ export function AnimeEditor({ anime, onClose }: Props) {
             />
             <span>Recommended</span>
           </label>
+
+          {groups.length > 0 && (
+            <label className="editor-field">
+              <span>Group</span>
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                <option value="">— none (show on its own) —</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {error && <p className="login-error">{error}</p>}
 

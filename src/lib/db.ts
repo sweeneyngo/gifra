@@ -289,19 +289,20 @@ export interface Anime {
   average_score: number | null; // AniList community average (0–100)
   genres: string | null; // comma-joined, e.g. "Action, Drama"
   cover_color: string | null; // AniList dominant cover color (hex)
+  group_id: string | null; // owner-assigned group; null = shown standalone
   created_at: string;
   focal_x: number;
   focal_y: number;
 }
 
-export async function listAnime(): Promise<Anime[]> {
-  // Highest personal score first (unrated — mostly planned — sink to the
-  // bottom), then alphabetical by title.
+/** Standalone anime for the main grid — group members are folded into their group. */
+export async function listUngroupedAnime(): Promise<Anime[]> {
   return (await sql`
     select id, url, title, image_url, score, status, recommended, format,
-           episodes, season_year, average_score, genres, cover_color,
+           episodes, season_year, average_score, genres, cover_color, group_id,
            created_at, focal_x, focal_y
     from anime
+    where group_id is null
     order by score desc nulls last, title asc nulls last
   `) as Anime[];
 }
@@ -351,22 +352,28 @@ export async function upsertAnime(fields: {
       focal_x       = excluded.focal_x,
       focal_y       = excluded.focal_y
     returning id, url, title, image_url, score, status, recommended, format,
-              episodes, season_year, average_score, genres, cover_color,
+              episodes, season_year, average_score, genres, cover_color, group_id,
               created_at, focal_x, focal_y
   `) as Anime[];
   return rows[0];
 }
 
-/** Update just the owner-set fields (admin edit), leaving scraped data intact. */
+/** Update just the owner-set fields (admin edit), incl. group membership. */
 export async function updateAnimeOwner(
   id: string,
-  fields: { score: number | null; status: string | null; recommended: boolean },
+  fields: {
+    score: number | null;
+    status: string | null;
+    recommended: boolean;
+    group_id: string | null;
+  },
 ): Promise<void> {
   await sql`
     update anime
     set score = ${fields.score},
         status = ${fields.status},
-        recommended = ${fields.recommended}
+        recommended = ${fields.recommended},
+        group_id = ${fields.group_id}
     where id = ${id}
   `;
 }
@@ -400,6 +407,128 @@ export async function updateAnimeScraped(
 
 export async function deleteAnime(id: string): Promise<void> {
   await sql`delete from anime where id = ${id}`;
+}
+
+// ---- Anime groups ----
+
+/** A group's own row (owner-set name + separate score). */
+export interface AnimeGroup {
+  id: string;
+  slug: string;
+  name: string;
+  score: number | null;
+  created_at: string;
+}
+
+/** A group as it appears on the grid: its score plus the first member's cover. */
+export interface AnimeGroupCard {
+  id: string;
+  slug: string;
+  name: string;
+  score: number | null;
+  cover_url: string | null; // first-added member's poster
+  cover_color: string | null;
+  member_count: number;
+}
+
+// The main grid interleaves standalone anime with group cards, both sorted by
+// score. A discriminated union keeps the two shapes distinct at the call site.
+export type AnimeGridEntry =
+  | { kind: "anime"; anime: Anime }
+  | { kind: "group"; group: AnimeGroupCard };
+
+/** Merge standalone anime + group cards into one score-sorted grid list. */
+export function buildAnimeGrid(
+  anime: Anime[],
+  groups: AnimeGroupCard[],
+): AnimeGridEntry[] {
+  const entries: AnimeGridEntry[] = [
+    ...anime.map((a) => ({ kind: "anime" as const, anime: a })),
+    ...groups.map((g) => ({ kind: "group" as const, group: g })),
+  ];
+  const score = (e: AnimeGridEntry) =>
+    e.kind === "anime" ? e.anime.score : e.group.score;
+  // Highest score first; unrated sink to the bottom, keeping a stable order.
+  return entries.sort((a, b) => (score(b) ?? -1) - (score(a) ?? -1));
+}
+
+/** For the main grid: every group with member count and representative cover. */
+export async function listAnimeGroupCards(): Promise<AnimeGroupCard[]> {
+  return (await sql`
+    select g.id, g.slug, g.name, g.score,
+           (select count(*)::int from anime a where a.group_id = g.id) as member_count,
+           (select a.image_url from anime a where a.group_id = g.id
+              order by a.created_at asc limit 1) as cover_url,
+           (select a.cover_color from anime a where a.group_id = g.id
+              order by a.created_at asc limit 1) as cover_color
+    from anime_groups g
+    order by g.score desc nulls last, g.name asc
+  `) as AnimeGroupCard[];
+}
+
+/** {id, name} pairs for the group picker in the anime editor. */
+export async function listAnimeGroupOptions(): Promise<
+  { id: string; name: string }[]
+> {
+  return (await sql`
+    select id, name from anime_groups order by name asc
+  `) as { id: string; name: string }[];
+}
+
+/** A group plus its member anime (for the detail page), or null if unknown. */
+export async function getAnimeGroupBySlug(
+  slug: string,
+): Promise<{ group: AnimeGroup; members: Anime[] } | null> {
+  const groups = (await sql`
+    select id, slug, name, score, created_at from anime_groups where slug = ${slug}
+  `) as AnimeGroup[];
+  const group = groups[0];
+  if (!group) return null;
+  const members = (await sql`
+    select id, url, title, image_url, score, status, recommended, format,
+           episodes, season_year, average_score, genres, cover_color, group_id,
+           created_at, focal_x, focal_y
+    from anime
+    where group_id = ${group.id}
+    order by score desc nulls last, season_year asc nulls last, created_at asc
+  `) as Anime[];
+  return { group, members };
+}
+
+export async function animeGroupSlugExists(slug: string): Promise<boolean> {
+  const rows = (await sql`
+    select 1 from anime_groups where slug = ${slug}
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+export async function insertAnimeGroup(fields: {
+  slug: string;
+  name: string;
+  score: number | null;
+}): Promise<AnimeGroup> {
+  const rows = (await sql`
+    insert into anime_groups (slug, name, score)
+    values (${fields.slug}, ${fields.name}, ${fields.score})
+    returning id, slug, name, score, created_at
+  `) as AnimeGroup[];
+  return rows[0];
+}
+
+export async function updateAnimeGroup(
+  id: string,
+  fields: { name: string; score: number | null },
+): Promise<void> {
+  await sql`
+    update anime_groups
+    set name = ${fields.name}, score = ${fields.score}
+    where id = ${id}
+  `;
+}
+
+/** Delete a group; members are ungrouped automatically (FK on delete set null). */
+export async function deleteAnimeGroup(id: string): Promise<void> {
+  await sql`delete from anime_groups where id = ${id}`;
 }
 
 /** Fuzzy-find items by title / store / url for the owner manage commands. */

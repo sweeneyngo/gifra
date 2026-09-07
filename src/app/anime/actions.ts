@@ -3,20 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { enrichAnime } from "@/lib/anilist";
+import { slugify, uniqueSlug } from "@/lib/slug";
 import {
   upsertAnime,
   updateAnimeOwner,
   updateAnimeScraped,
   deleteAnime,
+  insertAnimeGroup,
+  updateAnimeGroup,
+  deleteAnimeGroup,
+  animeGroupSlugExists,
 } from "@/lib/db";
 
 export interface OwnerFields {
   score: number | null;
   status: string | null;
   recommended: boolean;
+  group_id: string | null;
 }
 
 const csv = (g: string[]): string | null => (g.length ? g.join(", ") : null);
+
+// A group's detail page shares the [slug] route; revalidate it too on writes.
+function revalidateAnime() {
+  revalidatePath("/anime");
+  revalidatePath("/anime/[slug]", "page");
+}
 
 /** Add (or refresh) an anime by AniList URL or title search, then apply owner fields. */
 export async function addAnime(
@@ -29,7 +41,7 @@ export async function addAnime(
       "Couldn't find that on AniList — try the anilist.co URL or a different title.",
     );
   }
-  await upsertAnime({
+  const row = await upsertAnime({
     url: d.url,
     title: d.title,
     image_url: d.image_url,
@@ -43,13 +55,15 @@ export async function addAnime(
     genres: csv(d.genres),
     cover_color: d.cover_color,
   });
-  revalidatePath("/anime");
+  // upsert leaves group untouched; apply the chosen group when adding.
+  if (input.group_id) await updateAnimeOwner(row.id, input);
+  revalidateAnime();
 }
 
 export async function updateAnime(id: string, fields: OwnerFields): Promise<void> {
   await requireAdmin();
   await updateAnimeOwner(id, fields);
-  revalidatePath("/anime");
+  revalidateAnime();
 }
 
 /** Re-query AniList and refresh only the scraped fields. */
@@ -69,11 +83,45 @@ export async function reenrichAnime(id: string, url: string): Promise<void> {
     focal_x: 50,
     focal_y: 50,
   });
-  revalidatePath("/anime");
+  revalidateAnime();
 }
 
 export async function removeAnime(id: string): Promise<void> {
   await requireAdmin();
   await deleteAnime(id);
-  revalidatePath("/anime");
+  revalidateAnime();
+}
+
+// ---- Group actions ----
+
+export interface GroupFields {
+  name: string;
+  score: number | null;
+}
+
+export async function addAnimeGroup(fields: GroupFields): Promise<void> {
+  await requireAdmin();
+  const name = fields.name.trim();
+  if (!name) throw new Error("Group needs a name.");
+  const slug = await uniqueSlug(slugify(name) || "group", animeGroupSlugExists);
+  await insertAnimeGroup({ slug, name, score: fields.score });
+  revalidateAnime();
+}
+
+export async function editAnimeGroup(
+  id: string,
+  fields: GroupFields,
+): Promise<void> {
+  await requireAdmin();
+  const name = fields.name.trim();
+  if (!name) throw new Error("Group needs a name.");
+  await updateAnimeGroup(id, { name, score: fields.score });
+  revalidateAnime();
+}
+
+/** Delete a group; its members fall back to standalone cards on the grid. */
+export async function removeAnimeGroup(id: string): Promise<void> {
+  await requireAdmin();
+  await deleteAnimeGroup(id);
+  revalidateAnime();
 }

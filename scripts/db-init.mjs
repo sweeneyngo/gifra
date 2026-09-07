@@ -90,6 +90,25 @@ await sql`
   )
 `;
 
+// Owner-defined groups: a named bucket with its own separate score that
+// collapses several anime rows (e.g. a multi-season series) into one card on
+// the grid. Membership is manual via `anime.group_id`; deleting a group
+// ungroups its members (on delete set null) rather than removing the anime.
+await sql`
+  create table if not exists anime_groups (
+    id         uuid primary key default gen_random_uuid(),
+    slug       text not null unique,
+    name       text not null,
+    score      real,
+    created_at timestamptz not null default now()
+  )
+`;
+await sql`
+  alter table anime add column if not exists group_id uuid
+    references anime_groups(id) on delete set null
+`;
+await sql`create index if not exists anime_group_id_idx on anime (group_id)`;
+
 console.log("✅ anime table ready.");
 
 // wplace pixel-art progress tracking. A `project` is one drawing pinned to the

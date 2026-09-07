@@ -1,73 +1,77 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Anime } from "@/lib/db";
+import Link from "next/link";
+import type { AnimeGridEntry, AnimeGroupCard } from "@/lib/db";
 import { CoverArt } from "../CoverArt";
 import { logout } from "../admin/actions";
 import { EditButton } from "../EditButton";
 import { AnimeEditor } from "./AnimeEditor";
-import { scoreColor, STATUS_LABEL, formatMeta, StarIcon } from "./marks";
+import { GroupEditor } from "./GroupEditor";
+import {
+  AnimeGridCard,
+  AnimeListRow,
+  ViewToggle,
+  type EditTarget,
+  type View,
+} from "./AnimeCard";
+import { scoreColor } from "./marks";
 
-type EditTarget = Anime | "new";
+const VIEW_KEY = "gifra:anime-view";
 
-// The recommended marker shown beside an anime's title.
-function NameMarks({ anime }: { anime: Anime }) {
-  return anime.recommended ? (
-    <span className="rec-star" title="Recommended" aria-label="Recommended">
-      <StarIcon />
-    </span>
-  ) : null;
-}
+// Small "stacked layers" mark that flags a card as a group, not a single title.
+const LayersIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M12 2 2 7l10 5 10-5-10-5Z" />
+    <path d="m2 12 10 5 10-5" />
+    <path d="m2 17 10 5 10-5" />
+  </svg>
+);
 
-function GridCard({
-  anime,
+const seasons = (n: number) => `${n} season${n === 1 ? "" : "s"}`;
+
+function GroupGridCard({
+  group,
   admin,
   onEdit,
 }: {
-  anime: Anime;
+  group: AnimeGroupCard;
   admin: boolean;
-  onEdit: (t: EditTarget) => void;
+  onEdit: (g: AnimeGroupCard) => void;
 }) {
   return (
     <div className="card">
-      <a
-        href={anime.url}
-        target="_blank"
-        rel="noreferrer"
-        className="thumb thumb-poster"
-        aria-label={anime.title ?? "anime"}
-      >
-        <CoverArt src={anime.image_url} alt="" />
-        {anime.score != null && (
+      <Link href={`/anime/${group.slug}`} className="thumb thumb-poster" aria-label={group.name}>
+        <CoverArt src={group.cover_url} alt="" />
+        <span className="group-badge" title={seasons(group.member_count)}>
+          <LayersIcon />
+          {group.member_count}
+        </span>
+        {group.score != null && (
           <span
             className="score-square"
-            style={{ background: scoreColor(anime.score) }}
-            title={`My score: ${anime.score}/10`}
+            style={{ background: scoreColor(group.score) }}
+            title={`My score: ${group.score}/10`}
           />
         )}
-      </a>
+      </Link>
 
       <div className="body">
         <div className="name-row">
-          <a href={anime.url} target="_blank" rel="noreferrer" className="name">
-            {anime.title ?? anime.url}
-          </a>
-          <NameMarks anime={anime} />
-          {admin && <EditButton onClick={() => onEdit(anime)} />}
+          <Link href={`/anime/${group.slug}`} className="name">
+            {group.name}
+          </Link>
+          {admin && <EditButton onClick={() => onEdit(group)} />}
         </div>
 
         <div className="meta-row">
           <div className="meta game-meta">
-            {formatMeta(anime) && <span>{formatMeta(anime)}</span>}
-            {anime.status && (
-              <span className={`play-status is-${anime.status}`}>
-                {STATUS_LABEL[anime.status] ?? anime.status}
-              </span>
-            )}
+            <span>{seasons(group.member_count)}</span>
           </div>
-          {anime.score != null && (
-            <span className="score-num" style={{ color: scoreColor(anime.score) }}>
-              {anime.score}
+          {group.score != null && (
+            <span className="score-num" style={{ color: scoreColor(group.score) }}>
+              {group.score}
               <span className="score-max">/10</span>
             </span>
           )}
@@ -77,52 +81,51 @@ function GridCard({
   );
 }
 
-function ListRow({
-  anime,
+function GroupListRow({
+  group,
   admin,
   onEdit,
 }: {
-  anime: Anime;
+  group: AnimeGroupCard;
   admin: boolean;
-  onEdit: (t: EditTarget) => void;
+  onEdit: (g: AnimeGroupCard) => void;
 }) {
-  const content = (
-    <a href={anime.url} target="_blank" rel="noreferrer" className="game-row-link">
-      <span className="row-thumb row-thumb-poster">
-        <CoverArt src={anime.image_url} alt="" phSize="40%" />
-      </span>
-      <span className="row-name">{anime.title ?? anime.url}</span>
-      <NameMarks anime={anime} />
-      {anime.status && (
-        <span className={`play-status is-${anime.status} row-status`}>
-          {STATUS_LABEL[anime.status] ?? anime.status}
-        </span>
-      )}
-      <span className="row-updated">{formatMeta(anime)}</span>
-      {anime.score != null && (
-        <span className="row-score" style={{ color: scoreColor(anime.score) }}>
-          {anime.score}
-          <span className="score-max">/10</span>
-        </span>
-      )}
-    </a>
-  );
-
   return (
     <div className="game-row">
-      {content}
-      {admin && <EditButton onClick={() => onEdit(anime)} />}
+      <Link href={`/anime/${group.slug}`} className="game-row-link">
+        <span className="row-thumb row-thumb-poster">
+          <CoverArt src={group.cover_url} alt="" phSize="40%" />
+        </span>
+        <span className="row-name">{group.name}</span>
+        <span className="group-tag" title="Group">
+          <LayersIcon />
+        </span>
+        <span className="row-updated">{seasons(group.member_count)}</span>
+        {group.score != null && (
+          <span className="row-score" style={{ color: scoreColor(group.score) }}>
+            {group.score}
+            <span className="score-max">/10</span>
+          </span>
+        )}
+      </Link>
+      {admin && <EditButton onClick={() => onEdit(group)} />}
     </div>
   );
 }
 
-type View = "grid" | "list";
-const VIEW_KEY = "gifra:anime-view";
-
-export function AnimeView({ anime, admin }: { anime: Anime[]; admin: boolean }) {
+export function AnimeView({
+  entries,
+  groups,
+  admin,
+}: {
+  entries: AnimeGridEntry[];
+  groups: { id: string; name: string }[];
+  admin: boolean;
+}) {
   // Start on "grid" for a stable first render, then adopt the saved choice.
   const [view, setView] = useState<View>("grid");
-  const [editing, setEditing] = useState<EditTarget | null>(null);
+  const [editingAnime, setEditingAnime] = useState<EditTarget | null>(null);
+  const [editingGroup, setEditingGroup] = useState<AnimeGroupCard | "new" | null>(null);
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY);
     if (saved === "grid" || saved === "list") setView(saved);
@@ -132,14 +135,15 @@ export function AnimeView({ anime, admin }: { anime: Anime[]; admin: boolean }) 
     localStorage.setItem(VIEW_KEY, v);
   };
 
-  const rated = anime.filter((a) => a.score != null).length;
+  const groupCount = entries.filter((e) => e.kind === "group").length;
+  const titleCount = entries.length - groupCount;
 
   return (
     <>
       <div className="toolbar">
         <span className="count">
-          {anime.length} title{anime.length === 1 ? "" : "s"}
-          {rated > 0 && ` · ${rated} rated`}
+          {titleCount} title{titleCount === 1 ? "" : "s"}
+          {groupCount > 0 && ` · ${groupCount} group${groupCount === 1 ? "" : "s"}`}
         </span>
         <div className="toolbar-actions">
           {admin && (
@@ -147,9 +151,16 @@ export function AnimeView({ anime, admin }: { anime: Anime[]; admin: boolean }) 
               <button
                 type="button"
                 className="btn primary"
-                onClick={() => setEditing("new")}
+                onClick={() => setEditingAnime("new")}
               >
                 + Add anime
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setEditingGroup("new")}
+              >
+                + Add group
               </button>
               <form action={logout}>
                 <button type="submit" className="btn">
@@ -158,77 +169,64 @@ export function AnimeView({ anime, admin }: { anime: Anime[]; admin: boolean }) 
               </form>
             </>
           )}
-          <div className="view-toggle" role="group" aria-label="View">
-            <button
-              type="button"
-              className={`view-btn${view === "grid" ? " active" : ""}`}
-              onClick={() => choose("grid")}
-              aria-pressed={view === "grid"}
-              aria-label="Grid view"
-              title="Grid view"
-            >
-              <GridIcon />
-            </button>
-            <button
-              type="button"
-              className={`view-btn${view === "list" ? " active" : ""}`}
-              onClick={() => choose("list")}
-              aria-pressed={view === "list"}
-              aria-label="List view"
-              title="List view"
-            >
-              <ListIcon />
-            </button>
-          </div>
+          <ViewToggle view={view} onChoose={choose} />
         </div>
       </div>
 
-      {anime.length === 0 ? (
+      {entries.length === 0 ? (
         <div className="empty-state">No anime added yet.</div>
       ) : view === "grid" ? (
         <div className="grid grid-poster">
-          {anime.map((a) => (
-            <GridCard key={a.id} anime={a} admin={admin} onEdit={setEditing} />
-          ))}
+          {entries.map((e) =>
+            e.kind === "anime" ? (
+              <AnimeGridCard
+                key={e.anime.id}
+                anime={e.anime}
+                admin={admin}
+                onEdit={setEditingAnime}
+              />
+            ) : (
+              <GroupGridCard
+                key={e.group.id}
+                group={e.group}
+                admin={admin}
+                onEdit={setEditingGroup}
+              />
+            ),
+          )}
         </div>
       ) : (
         <div className="game-list">
-          {anime.map((a) => (
-            <ListRow key={a.id} anime={a} admin={admin} onEdit={setEditing} />
-          ))}
+          {entries.map((e) =>
+            e.kind === "anime" ? (
+              <AnimeListRow
+                key={e.anime.id}
+                anime={e.anime}
+                admin={admin}
+                onEdit={setEditingAnime}
+              />
+            ) : (
+              <GroupListRow
+                key={e.group.id}
+                group={e.group}
+                admin={admin}
+                onEdit={setEditingGroup}
+              />
+            ),
+          )}
         </div>
       )}
 
-      {editing && <AnimeEditor anime={editing} onClose={() => setEditing(null)} />}
+      {editingAnime && (
+        <AnimeEditor
+          anime={editingAnime}
+          groups={groups}
+          onClose={() => setEditingAnime(null)}
+        />
+      )}
+      {editingGroup && (
+        <GroupEditor group={editingGroup} onClose={() => setEditingGroup(null)} />
+      )}
     </>
   );
 }
-
-const GridIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
-    <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
-    <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
-    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
-  </svg>
-);
-
-const ListIcon = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    aria-hidden
-  >
-    <line x1="8" y1="6" x2="21" y2="6" />
-    <line x1="8" y1="12" x2="21" y2="12" />
-    <line x1="8" y1="18" x2="21" y2="18" />
-    <circle cx="3.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
-    <circle cx="3.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
-    <circle cx="3.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
-  </svg>
-);
