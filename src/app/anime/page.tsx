@@ -6,6 +6,7 @@ import {
   buildAnimeGrid,
 } from "@/lib/db";
 import { isAdmin } from "@/lib/auth";
+import { CoverArt } from "../CoverArt";
 import { AnimeView } from "./AnimeView";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +28,15 @@ export default async function Anime() {
     <div className="wrap">
       <div className="hline" />
 
-      <header className="page-head">
-        <span className="eyebrow">{OWNER_HANDLE}</span>
-        <h1>{PAGE_TITLE}</h1>
+      {/* Banner image lives at public/banner3.jpg */}
+      <header className="banner">
+        <CoverArt src="/banner3.jpg" alt="" objectPosition="center 12%" phSize="64px" />
+        <div className="banner-inner">
+          <div className="banner-title">
+            <span className="eyebrow">{OWNER_HANDLE}</span>
+            <h1>{PAGE_TITLE}</h1>
+          </div>
+        </div>
       </header>
 
       <div className="hline" />

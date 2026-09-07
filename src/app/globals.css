@@ -923,9 +923,11 @@ body::after {
 }
 
 /* ---------- Anime surface ---------- */
-/* Letterboxd-style portrait posters: denser columns and a 2:3 cover. */
+/* Letterboxd-style portrait posters: a 2:3 cover, capped at 4 columns. The
+   max() keeps each column ≥160px so it drops to 3/2/1 columns as the row
+   narrows; the (100% - 3*gap)/4 term prevents ever exceeding 4. */
 .grid-poster {
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(max(160px, (100% - 48px) / 4), 1fr));
 }
 .thumb-poster {
   aspect-ratio: 2 / 3;
@@ -954,11 +956,16 @@ body::after {
   background: rgba(0, 0, 0, 0.6);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
-/* List-view group marker sits inline before the season count. */
+/* List-view group marker (layers icon + member count) before the meta column. */
 .group-tag {
   flex: none;
   display: inline-flex;
+  align-items: center;
+  gap: 3px;
   color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Group detail page: back link + title/score header. */

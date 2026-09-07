@@ -429,6 +429,9 @@ export interface AnimeGroupCard {
   cover_url: string | null; // first-added member's poster
   cover_color: string | null;
   member_count: number;
+  format: string | null; // most common format among members (e.g. "TV")
+  min_year: number | null; // earliest member season year
+  max_year: number | null; // latest member season year
 }
 
 // The main grid interleaves standalone anime with group cards, both sorted by
@@ -460,7 +463,11 @@ export async function listAnimeGroupCards(): Promise<AnimeGroupCard[]> {
            (select a.image_url from anime a where a.group_id = g.id
               order by a.created_at asc limit 1) as cover_url,
            (select a.cover_color from anime a where a.group_id = g.id
-              order by a.created_at asc limit 1) as cover_color
+              order by a.created_at asc limit 1) as cover_color,
+           (select mode() within group (order by a.format)
+              from anime a where a.group_id = g.id and a.format is not null) as format,
+           (select min(a.season_year) from anime a where a.group_id = g.id) as min_year,
+           (select max(a.season_year) from anime a where a.group_id = g.id) as max_year
     from anime_groups g
     order by g.score desc nulls last, g.name asc
   `) as AnimeGroupCard[];

@@ -41,6 +41,28 @@ export function formatMeta(a: {
   return parts.join(" · ");
 }
 
+// "2009" for a single year, "2009–2016" for a span, "" if both unknown.
+function yearRange(min: number | null, max: number | null): string {
+  if (min == null && max == null) return "";
+  if (min == null) return String(max);
+  if (max == null) return String(min);
+  return min === max ? String(min) : `${min}–${max}`;
+}
+
+// Group card descriptor: dominant format + the span of member years,
+// e.g. "TV · 2009–2016". Mirrors formatMeta for standalone cards.
+export function groupMeta(g: {
+  format: string | null;
+  min_year: number | null;
+  max_year: number | null;
+}): string {
+  const parts: string[] = [];
+  if (g.format) parts.push(FORMAT_LABEL[g.format] ?? g.format);
+  const yr = yearRange(g.min_year, g.max_year);
+  if (yr) parts.push(yr);
+  return parts.join(" · ");
+}
+
 export const StarIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />

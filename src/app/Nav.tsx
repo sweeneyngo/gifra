@@ -6,9 +6,9 @@ import { PawMark } from "./paw";
 
 const TABS = [
   { href: "/", label: "Wishlist" },
-  { href: "/music", label: "Music" },
   { href: "/games", label: "FVNs" },
   { href: "/anime", label: "Anime" },
+  { href: "/music", label: "Music" },
   { href: "/wplace", label: "Canvas" },
 ];
 

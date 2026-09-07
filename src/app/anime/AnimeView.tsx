@@ -15,7 +15,7 @@ import {
   type EditTarget,
   type View,
 } from "./AnimeCard";
-import { scoreColor } from "./marks";
+import { scoreColor, groupMeta } from "./marks";
 
 const VIEW_KEY = "gifra:anime-view";
 
@@ -67,6 +67,7 @@ function GroupGridCard({
 
         <div className="meta-row">
           <div className="meta game-meta">
+            {groupMeta(group) && <span>{groupMeta(group)}</span>}
             <span>{seasons(group.member_count)}</span>
           </div>
           {group.score != null && (
@@ -97,10 +98,11 @@ function GroupListRow({
           <CoverArt src={group.cover_url} alt="" phSize="40%" />
         </span>
         <span className="row-name">{group.name}</span>
-        <span className="group-tag" title="Group">
+        <span className="group-tag" title={seasons(group.member_count)}>
           <LayersIcon />
+          {group.member_count}
         </span>
-        <span className="row-updated">{seasons(group.member_count)}</span>
+        <span className="row-updated">{groupMeta(group)}</span>
         {group.score != null && (
           <span className="row-score" style={{ color: scoreColor(group.score) }}>
             {group.score}
